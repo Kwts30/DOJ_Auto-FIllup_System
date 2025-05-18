@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # DOJ Centralized System
 
 This project is a web-based DOJ document management system with live image-based document editing and Discord integration.
@@ -67,6 +66,3 @@ If you forget the command, check this README! 😄
 
 cd "D:/Documents/city server bot/birth certificate bot/backend"
 uvicorn app:fastapi_app --reload
-=======
-# DOJ_Auto-FIllup_System
->>>>>>> c7ca80651854f841ec4a27139701efb31aa1068a
