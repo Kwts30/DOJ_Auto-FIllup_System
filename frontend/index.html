@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Birth Certificate</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="header-bar">
+            <img src="assets/doj.png" class="header-seal" alt="Department of Justice Seal">
+            <img src="assets/lossantos.webp" class="header-seal" alt="City of Los Santos">
+            <div class="header-title">
+                <h1>DEPARTMENT OF JUSTICE</h1>
+                <p>City of Los Santos | State of San Andreas</p>
+            </div>
+        </div>
+    </header>
+    <div class="main-container">
+        <aside class="sidebar">
+            <img src="assets/doj.png" class="sidebar-seal" alt="DOJ Seal">
+            <div class="sidebar-title">DOCUMENTS</div>
+            <ul class="sidebar-menu">
+                <li><button class="active">Birth Certificate</button></li>
+                <li><button>Death Certificate</button></li>
+                <li><button>Marriage Certificate</button></li>
+            </ul>
+        </aside>
+        <main class="content-area">
+            <div class="form-preview-wrapper">
+                <section class="form-section">
+                    <h2>Birth Certificate</h2>
+                    <form id="birth-certificate-form">
+                        <div class="form-block">
+                            <h3>Certificate Numbers</h3>
+                            <div class="form-row">
+                                <label>State File Number:</label>
+                                <input type="text" id="state_file_num" name="state_file_num" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Local Registration Number:</label>
+                                <input type="text" id="local_reg_num" name="local_reg_num" required>
+                            </div>
+                        </div>
+                        <div class="form-block">
+                            <h3>Child Information</h3>
+                            <div class="form-row">
+                                <label>1A. First Name of Child:</label>
+                                <input type="text" id="name_first" name="name_first" required>
+                            </div>
+                            <div class="form-row">
+                                <label>1B. Middle Name of Child:</label>
+                                <input type="text" id="name_middle" name="name_middle">
+                            </div>
+                            <div class="form-row">
+                                <label>1C. Last Name of Child:</label>
+                                <input type="text" id="name_last" name="name_last" required>
+                            </div>
+                            <div class="form-row">
+                                <label>2. Sex:</label>
+                                <input type="text" id="sex" name="sex" required>
+                            </div>
+                            <div class="form-row">
+                                <label>3A. Type of Birth (Single, Twin, etc.):</label>
+                                <input type="text" id="birth_type" name="birth_type">
+                            </div>
+                            <div class="form-row">
+                                <label>3B. if multiple this child 1st, 2nd, etc:</label>
+                                <input type="text" id="birth_weight" name="birth_weight">
+                            </div>
+                            <div class="form-row">
+                                <label>4A. date of birth - mm/dd/yyyy:</label>
+                                <input type="text" id="date_birth" name="date_birth">
+                            </div>
+                            <div class="form-row">
+                                <label>4B. Time of Birth (24-hour):</label>
+                                <input type="text" id="birth_time" name="birth_time">
+                            </div>
+                        </div>
+                        <div class="form-block">
+                            <h3>Place of Birth</h3>
+                            <div class="form-row">
+                                <label>6A. Hospital or Facility Name:</label>
+                                <input type="text" id="birth_place" name="birth_place" required>
+                            </div>
+                            <div class="form-row">
+                                <label>6B. Street Address:</label>
+                                <input type="text" id="birth_address" name="birth_address">
+                            </div>
+                            <div class="form-row">
+                                <label>6C. City:</label>
+                                <input type="text" id="birth_city" name="birth_city" required>
+                            </div>
+                            <div class="form-row">
+                                <label>6D. State:</label>
+                                <input type="text" id="birth_state" name="birth_state" required>
+                            </div>
+                        </div>
+                        <div class="form-block">
+                            <h3>Name of Mother</h3>
+                            <div class="form-row">
+                                <label>6A. Name of Mother (First):</label>
+                                <input type="text" id="mother_name" name="mother_name" required>
+                            </div>
+                            <div class="form-row">
+                                <label>6B. Middle:</label>
+                                <input type="text" id="mother_middle" name="mother_middle">
+                            </div>
+                            <div class="form-row">
+                                <label>6C. Last:</label>
+                                <input type="text" id="mother_last" name="mother_last" required>
+                            </div>
+                            <div class="form-row">
+                                <label>6D. place of birth - state/country:</label>
+                                <input type="text" id="mother_bop" name="mother_birth" required>
+                            </div>
+                            <div class="form-row">
+                                <label>6E. Date of Birth:</label>
+                                <input type="date" id="mother_birth" name="mother_birth" required>
+                            </div>
+                        </div>
+                        <div class="form-block">
+                            <h3>Name of Father</h3>
+                            <div class="form-row">
+                                <label>7A. Name of Father (First):</label>
+                                <input type="text" id="father_name" name="father_name" required>
+                            </div>
+                            <div class="form-row">
+                                <label>7B. Middle:</label>
+                                <input type="text" id="father_middle" name="father_middle">
+                            </div>
+                            <div class="form-row">
+                                <label>7C. Last:</label>
+                                <input type="text" id="father_last" name="father_last" required>
+                            </div>
+                             <div class="form-row">
+                                <label>7D. place of birth - state/country:</label>
+                                <input type="text" id="father_bop" name="father_bop" required>
+                            </div>
+                            <div class="form-row">
+                                <label>7E. Date of Birth:</label>
+                                <input type="date" id="father_birth" name="father_birth" required>
+                            </div>
+                        </div>
+                        <div class="form-block">
+                            <h3>Name of the Issuer</h3>
+                            <div class="form-row">
+                                <label>8A. Full Name of Issuer:</label>
+                                <input type="text" id="issuer_name" name="issuer_name" required>
+                            </div>
+                            <div class="form-row">
+                                <label>8B. Occupation of Issuer:</label>
+                                <input type="text" id="issuer_occupation" name="issuer_occupation">
+                            </div>
+                            <div class="form-row">
+                                <label>8C. Issuer Signature:</label>
+                                <input type="text" id="issuer_signature" name="issuer_signature" required>
+                            </div>
+                            <div class="form-row">
+                                <label>8D. Date of Registration:</label>
+                                <input type="date" id="registration_date" name="registration_date" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="submit-btn">SUBMIT</button>
+                    </form>
+                </section>
+                <section class="preview-section">
+                    <h2>Document Preview</h2>
+                    <div id="preview-container">
+                        <canvas id="preview-canvas"></canvas>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+    <footer>
+        <div class="footer-bar">
+            <span>&copy; kwts | All rights reserved 2025</span>
+            <span>City of Los Santos</span>
+            <img src="assets/lossantos.webp" class="footer-seal" alt="City of Los Santos">
+            <span>State of San Andreas</span>
+        </div>
+    </footer>
+    <div id="loading-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Processing Birth Certificate</h3>
+            </div>
+            <div class="modal-body">
+                <div class="spinner"></div>
+                <p id="loading-message">Please wait while we process your request...</p>
+                <p class="loading-details">This may take a few moments</p>
+            </div>
+            <div class="modal-footer">
+                <button id="cancel-button" class="cancel-btn">Cancel Process</button>
+            </div>
+        </div>
+    </div>
+    <div id="success-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Success!</h3>
+            </div>
+            <div class="modal-body">
+                <div class="success-icon">✓</div>
+                <p id="success-message">Birth certificate has been successfully processed and sent to Discord.</p>
+                <p class="success-details">You can now close this window</p>
+            </div>
+            <div class="modal-footer">
+                <button id="done-button" class="done-btn">Done</button>
+            </div>
+        </div>
+    </div>
+    <div id="error-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Error</h3>
+            </div>
+            <div class="modal-body">
+                <div class="success-icon" style="background-color:#e74c3c;">&#10006;</div>
+                <p id="error-message">An error occurred.</p>
+                <p class="success-details">Please try again or contact support.</p>
+            </div>
+            <div class="modal-footer">
+                <button id="close-error-button" class="done-btn">Close</button>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
