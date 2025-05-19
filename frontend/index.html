@@ -28,7 +28,7 @@
         </aside>
         <main class="content-area">
             <div class="form-preview-wrapper">
-                <section class="form-section">
+                <section class="form-section" id="birth-certificate-section" style="display: block;">
                     <h2>Birth Certificate</h2>
                     <form id="birth-certificate-form">
                         <div class="form-block">
@@ -164,6 +164,210 @@
                         <button type="submit" class="submit-btn">SUBMIT</button>
                     </form>
                 </section>
+                <section class="form-section" id="marriage-certificate-section" style="display: none;">
+                    <h2>Marriage Certificate</h2>
+                    <form id="marriage-certificate-form">
+                        <div class="form-block">
+                            <h3>Certificate Numbers</h3>
+                            <div class="form-row">
+                                <label>State File Number:</label>
+                                <input type="text" id="marriage_state_file_num" name="marriage_state_file_num" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Local Registration Number:</label>
+                                <input type="text" id="marriage_local_reg_num" name="marriage_local_reg_num" required>
+                            </div>
+                        </div>
+                        <div class="form-block">
+                            <h3>Groom Applicant Personal Data</h3>
+                            <div class="form-row">
+                                <label>First Name:</label>
+                                <input type="text" id="groom_first" name="groom_first" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Middle:</label>
+                                <input type="text" id="groom_middle" name="groom_middle" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Current Last (Family):</label>
+                                <input type="text" id="groom_last" name="groom_last" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Date of Birth (MM/DD/YYYY):</label>
+                                <input type="date" id="groom_dob" name="groom_dob" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Residence - Street and Number:</label>
+                                <input type="text" id="groom_address" name="groom_address" required>
+                            </div>
+                            <div class="form-row">
+                                <label>City:</label>
+                                <input type="text" id="groom_city" name="groom_city" required>
+                            </div>
+                            <div class="form-row">
+                                <label>State of Birth:</label>
+                                <input type="text" id="groom_birthplace" name="groom_birthplace" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Number of Marriages:</label>
+                                <input type="text" id="groom_marriages" name="groom_marriages" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Usual Occupation:</label>
+                                <input type="text" id="groom_occupation" name="groom_occupation" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Usual Kind of Business or Industry:</label>
+                                <input type="text" id="groom_business" name="groom_business" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Education - Years Completed:</label>
+                                <input type="text" id="groom_education" name="groom_education" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Full Name of Parent 1:</label>
+                                <input type="text" id="groom_parent1" name="groom_parent1" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Parent 1 State of Birth:</label>
+                                <input type="text" id="groom_parent1_birthplace" name="groom_parent1_birthplace" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Full Name of Parent 2:</label>
+                                <input type="text" id="groom_parent2" name="groom_parent2" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Parent 2 State of Birth:</label>
+                                <input type="text" id="groom_parent2_birthplace" name="groom_parent2_birthplace" required>
+                            </div>
+                        </div>
+
+                        <div class="form-block">
+                            <h3>Bride Applicant Personal Data</h3>
+                            <div class="form-row">
+                                <label>First Name:</label>
+                                <input type="text" id="bride_first" name="bride_first" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Middle:</label>
+                                <input type="text" id="bride_middle" name="bride_middle" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Current Last (Family):</label>
+                                <input type="text" id="bride_last" name="bride_last" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Date of Birth (MM/DD/YYYY):</label>
+                                <input type="date" id="bride_dob" name="bride_dob" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Residence - Street and Number:</label>
+                                <input type="text" id="bride_address" name="bride_address" required>
+                            </div>
+                            <div class="form-row">
+                                <label>City:</label>
+                                <input type="text" id="bride_city" name="bride_city" required>
+                            </div>
+                            <div class="form-row">
+                                <label>State of Birth:</label>
+                                <input type="text" id="bride_birthplace" name="bride_birthplace" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Number of Marriages:</label>
+                                <input type="text" id="bride_marriages" name="bride_marriages" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Usual Occupation:</label>
+                                <input type="text" id="bride_occupation" name="bride_occupation" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Usual Kind of Business or Industry:</label>
+                                <input type="text" id="bride_business" name="bride_business" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Education - Years Completed:</label>
+                                <input type="text" id="bride_education" name="bride_education" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Full Name of Parent 1:</label>
+                                <input type="text" id="bride_parent1" name="bride_parent1" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Parent 1 State of Birth:</label>
+                                <input type="text" id="bride_parent1_birthplace" name="bride_parent1_birthplace" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Full Name of Parent 2:</label>
+                                <input type="text" id="bride_parent2" name="bride_parent2" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Parent 2 State of Birth:</label>
+                                <input type="text" id="bride_parent2_birthplace" name="bride_parent2_birthplace" required>
+                            </div>
+                        </div>
+                        <div class="form-block">
+                            <h3>Affidavit</h3>
+                            <div class="form-row">
+                                <label>Signature of Groom:</label>
+                                <input type="text" id="groom_signature" name="groom_signature" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Signature of Bride:</label>
+                                <input type="text" id="bride_signature" name="bride_signature" required>
+                            </div>
+                        </div>
+                        <div class="form-block">
+                            <h3>Marriage Details</h3>
+                            <div class="form-row">
+                                <label>Date of Marriage:</label>
+                                <input type="date" id="marriage_date" name="marriage_date" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Place of Marriage:</label>
+                                <input type="text" id="marriage_place" name="marriage_place" required>
+                            </div>
+                            <div class="form-row">
+                                <label>City:</label>
+                                <input type="text" id="marriage_city" name="marriage_city" required>
+                            </div>
+                            <div class="form-row">
+                                <label>State:</label>
+                                <input type="text" id="marriage_state" name="marriage_state" required>
+                            </div>
+                        </div>
+                        <div class="form-block">
+                            <h3>Officiant Details</h3>
+                            <div class="form-row">
+                                <label>Full Name of Officiant:</label>
+                                <input type="text" id="officiant_name" name="officiant_name" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Occupation:</label>
+                                <input type="text" id="officiant_occupation" name="officiant_occupation" required>
+                            </div>
+                        </div>
+                        <div class="form-block">
+                            <h3>Witnesses Details</h3>
+                            <div class="form-row">
+                                <label>Signature of 1st Witness:</label>
+                                <input type="text" id="witness1_signature" name="witness1_signature" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Full Name of 1st Witness:</label>
+                                <input type="text" id="witness1_name" name="witness1_name" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Signature of 2nd Witness:</label>
+                                <input type="text" id="witness2_signature" name="witness2_signature" required>
+                            </div>
+                            <div class="form-row">
+                                <label>Full Name of 2nd Witness:</label>
+                                <input type="text" id="witness2_name" name="witness2_name" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="submit-btn">Submit Marriage Certificate</button>
+                    </form>
+                </section>
                 <section class="preview-section">
                     <h2>Document Preview</h2>
                     <div id="preview-container">
@@ -184,7 +388,7 @@
     <div id="loading-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Processing Birth Certificate</h3>
+                <h3>Processing Document</h3>
             </div>
             <div class="modal-body">
                 <div class="spinner"></div>
@@ -203,7 +407,7 @@
             </div>
             <div class="modal-body">
                 <div class="success-icon">✓</div>
-                <p id="success-message">Birth certificate has been successfully processed and sent to Discord.</p>
+                <p id="success-message">The Document has been successfully processed and sent to Discord.</p>
                 <p class="success-details">You can now close this window</p>
             </div>
             <div class="modal-footer">
@@ -219,7 +423,7 @@
             <div class="modal-body">
                 <div class="success-icon" style="background-color:#e74c3c;">&#10006;</div>
                 <p id="error-message">An error occurred.</p>
-                <p class="success-details">Please try again or contact support.</p>
+                <p class="success-details">Please try again or contact KWTS for reports.</p>
             </div>
             <div class="modal-footer">
                 <button id="close-error-button" class="done-btn">Close</button>

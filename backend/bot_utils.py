@@ -123,21 +123,26 @@ def pdf_to_image(pdf_path, image_output_path):
     images = convert_from_path(pdf_path)
     images[0].save(image_output_path, 'PNG')
 
-def send_to_discord(image_bytes, child_full_name, state_code, city_code, state_file_num, local_reg_num):
+def send_to_discord(image_bytes, full_name, state_code, city_code, state_file_num, local_reg_num, is_marriage=False):
     DISCORD_TOKEN = "MTM3MjA4NjE0ODQwNjU3OTI1Mg.GO22WL.CE08h3-jlF0mLLqR5nIzPZ-pBTANHZbPTXu1Kg"
-    CHANNEL_ID = "1372548553427128340"
+    BIRTH_CHANNEL_ID = "1372548553427128340"
+    MARRIAGE_CHANNEL_ID = "1373828408760471572"  # Replace with your marriage certificate channel ID
 
-    url = f"https://discord.com/api/v9/channels/{CHANNEL_ID}/messages"
+    # Select channel based on certificate type
+    channel_id = MARRIAGE_CHANNEL_ID if is_marriage else BIRTH_CHANNEL_ID
+
+    url = f"https://discord.com/api/v9/channels/{channel_id}/messages"
     headers = {
         "Authorization": f"Bot {DISCORD_TOKEN}"
     }
 
+    cert_type = "Marriage" if is_marriage else "Birth"
     files = {
-        "file": (f"{child_full_name}_{state_code}_{city_code}.png", image_bytes, "image/png")
+        "file": (f"{full_name}_{state_code}_{city_code}.png", image_bytes, "image/png")
     }
 
     data = {
-        "content": f"Birth Certificate for {child_full_name} ({city_code}, {state_code})\nState File Number: {state_file_num}\nLocal Registration Number: {local_reg_num}"
+        "content": f"{cert_type} Certificate for {full_name})\nState File Number: {state_file_num}\nLocal Registration Number: {local_reg_num}"
     }
 
     response = requests.post(url, headers=headers, data=data, files=files)

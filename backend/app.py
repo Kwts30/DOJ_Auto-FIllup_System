@@ -50,3 +50,39 @@ async def birth_cert_submit(
         return JSONResponse({"message": "Birth certificate sent to Discord!"})
     else:
         return JSONResponse({"message": "Failed to send to Discord."}, status_code=500)
+
+@fastapi_app.post("/api/marriage-certificate/submit")
+async def marriage_cert_submit(
+    image: UploadFile,
+    groom_first: str = Form(...),
+    groom_middle: str = Form(...),
+    groom_last: str = Form(...),
+    bride_first: str = Form(...),
+    bride_middle: str = Form(...),
+    bride_last: str = Form(...),
+    marriage_state: str = Form(...),
+    marriage_city: str = Form(...),
+    state_file_num: str = Form(...),
+    local_reg_num: str = Form(...)
+):
+    # Read the image bytes
+    img_bytes = await image.read()
+
+    # Construct the couple's full names
+    couple_names = f"{groom_first}_{groom_last}_and_{bride_first}_{bride_last}"
+
+    # Send the image to Discord with certificate numbers
+    sent = send_to_discord(
+        img_bytes, 
+        couple_names, 
+        marriage_state, 
+        marriage_city,
+        state_file_num,
+        local_reg_num,
+        is_marriage=True
+    )
+
+    if sent:
+        return JSONResponse({"message": "Marriage certificate sent to Discord!"})
+    else:
+        return JSONResponse({"message": "Failed to send to Discord."}, status_code=500)
