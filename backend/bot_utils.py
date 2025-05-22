@@ -8,6 +8,13 @@ import os
 from pdf2image import convert_from_path
 import tempfile
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+BIRTH_CHANNEL_ID = os.getenv("BIRTH_CHANNEL_ID")
+MARRIAGE_CHANNEL_ID = os.getenv("MARRIAGE_CHANNEL_ID")
 
 PDF_TEMPLATE = "templates/birth-certificate-template.pdf"
 
@@ -124,27 +131,17 @@ def pdf_to_image(pdf_path, image_output_path):
     images[0].save(image_output_path, 'PNG')
 
 def send_to_discord(image_bytes, full_name, state_code, city_code, state_file_num, local_reg_num, is_marriage=False):
-    DISCORD_TOKEN = "MTM3MjA4NjE0ODQwNjU3OTI1Mg.GO22WL.CE08h3-jlF0mLLqR5nIzPZ-pBTANHZbPTXu1Kg"
-    BIRTH_CHANNEL_ID = "1372548553427128340"
-    MARRIAGE_CHANNEL_ID = "1373828408760471572"  # Replace with your marriage certificate channel ID
-
-    # Select channel based on certificate type
     channel_id = MARRIAGE_CHANNEL_ID if is_marriage else BIRTH_CHANNEL_ID
-
     url = f"https://discord.com/api/v9/channels/{channel_id}/messages"
     headers = {
         "Authorization": f"Bot {DISCORD_TOKEN}"
     }
-
     cert_type = "Marriage" if is_marriage else "Birth"
     files = {
         "file": (f"{full_name}_{state_code}_{city_code}.png", image_bytes, "image/png")
     }
-
     data = {
-        "content": f"{cert_type} Certificate for {full_name})\nState File Number: {state_file_num}\nLocal Registration Number: {local_reg_num}"
+        "content": f"{cert_type} Certificate for {full_name}\nState File Number: {state_file_num}\nLocal Registration Number: {local_reg_num}"
     }
-
     response = requests.post(url, headers=headers, data=data, files=files)
-
     return response.status_code == 200
