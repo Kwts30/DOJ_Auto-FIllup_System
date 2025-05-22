@@ -5,10 +5,15 @@ from bot_utils import send_to_discord
 
 fastapi_app = FastAPI()
 
-# Add CORS middleware
+# Add CORS middleware with specific origins
 fastapi_app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # You can restrict this to ["http://127.0.0.1:5501"] for more security
+    allow_origins=[
+        "http://localhost:5500",  # Local development
+        "http://127.0.0.1:5500",  # Local development
+        "https://kwts30.github.io",  # GitHub Pages domain
+        "https://kwts30.github.io/DOJ_Auto-FIllup_System/"  # Your specific GitHub Pages URL
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,3 +1,8 @@
+// API Configuration
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+    ? 'http://127.0.0.1:8000' 
+    : 'https://doj-certificate-bot.onrender.com'; // Your Render deployment URL
+
 // Modal elements
 const loadingModal = document.getElementById('loading-modal');
 const successModal = document.getElementById('success-modal');
@@ -79,7 +84,7 @@ document.getElementById('birth-certificate-form').addEventListener('submit', asy
         currentRequest = controller;
 
         // Send the form data to the backend
-        const response = await fetch('http://127.0.0.1:8000/api/birth-certificate/submit', {
+        const response = await fetch(`${API_BASE_URL}/api/birth-certificate/submit`, {
             method: 'POST',
             body: formData,
             signal: controller.signal
@@ -362,7 +367,7 @@ document.getElementById('marriage-certificate-form').addEventListener('submit', 
         currentRequest = controller;
 
         // Send the form data to the backend
-        const response = await fetch('http://127.0.0.1:8000/api/marriage-certificate/submit', {
+        const response = await fetch(`${API_BASE_URL}/api/marriage-certificate/submit`, {
             method: 'POST',
             body: formData,
             signal: controller.signal
