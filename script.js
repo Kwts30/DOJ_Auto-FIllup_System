@@ -1,7 +1,7 @@
 // API Configuration
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
     ? 'http://127.0.0.1:8000' 
-    : 'https://doj-certificate-bot.onrender.com'; // Your Render deployment URL
+    : 'https://kwits-doj.onrender.com'; // Your Render deployment URL
 
 // Modal elements
 const loadingModal = document.getElementById('loading-modal');

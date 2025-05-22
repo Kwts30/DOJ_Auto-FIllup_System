@@ -64,5 +64,5 @@ This project is a web-based DOJ document management system with live image-based
 If you forget the command, check this README! 😄
 
 
-cd "D:/Documents/city server bot/birth certificate bot/backend"
+cd "D:/Documents/city server bot/birth certificate bot"
 uvicorn app:fastapi_app --reload
