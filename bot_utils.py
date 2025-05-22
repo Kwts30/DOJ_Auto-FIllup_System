@@ -143,5 +143,10 @@ def send_to_discord(image_bytes, full_name, state_code, city_code, state_file_nu
     data = {
         "content": f"{cert_type} Certificate for {full_name}\nState File Number: {state_file_num}\nLocal Registration Number: {local_reg_num}"
     }
-    response = requests.post(url, headers=headers, data=data, files=files)
-    return response.status_code == 200
+    try:
+        response = requests.post(url, headers=headers, data=data, files=files)
+        print("Discord API response:", response.status_code, response.text)  # Debug log
+        return response.status_code == 200
+    except Exception as e:
+        print("Error sending to Discord:", e)  # Debug log
+        return False
