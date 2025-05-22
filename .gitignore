@@ -18,5 +18,3 @@ Thumbs.db
 
 # Other
 *.env
-*.sqlite3
-*.db
