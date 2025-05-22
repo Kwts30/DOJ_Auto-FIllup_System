@@ -1,7 +1,17 @@
 // API Configuration
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
     ? 'http://127.0.0.1:8000' 
-    : 'https://kwits-doj.onrender.com'; // Your Render deployment URL
+    : 'https://kwits-doj.onrender.com'; // Replace with your actual Render URL from the dashboard
+
+// Add debug logging
+console.log('Current hostname:', window.location.hostname);
+console.log('Using API URL:', API_BASE_URL);
+
+// Test API connection on page load
+fetch(`${API_BASE_URL}/api/health`)
+    .then(response => response.json())
+    .then(data => console.log('API Health Check:', data))
+    .catch(error => console.error('API Health Check Failed:', error));
 
 // Modal elements
 const loadingModal = document.getElementById('loading-modal');

@@ -12,12 +12,18 @@ fastapi_app.add_middleware(
         "http://localhost:5500",  # Local development
         "http://127.0.0.1:5500",  # Local development
         "https://kwts30.github.io",  # GitHub Pages domain
-        "https://kwts30.github.io/DOJ_Auto-FIllup_System/"  # Your specific GitHub Pages URL
+        "https://kwts30.github.io/DOJ_Auto-FIllup_System/",  # Your specific GitHub Pages URL
+        "https://kwts30.github.io/DOJ_Auto-FIllup_System"  # Without trailing slash
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add a health check endpoint
+@fastapi_app.get("/api/health")
+async def health_check():
+    return {"status": "healthy"}
 
 @fastapi_app.post("/api/birth-certificate/preview")
 async def birth_cert_preview(image: UploadFile):
