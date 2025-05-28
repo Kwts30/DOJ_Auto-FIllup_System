@@ -9,6 +9,7 @@ from pdf2image import convert_from_path
 import tempfile
 import requests
 from dotenv import load_dotenv
+import time
 
 load_dotenv()
 
@@ -143,10 +144,26 @@ def send_to_discord(image_bytes, full_name, state_code, city_code, state_file_nu
     data = {
         "content": f"{cert_type} Certificate for {full_name}\nState File Number: {state_file_num}\nLocal Registration Number: {local_reg_num}"
     }
-    try:
-        response = requests.post(url, headers=headers, data=data, files=files)
-        print("Discord API response:", response.status_code, response.text)  # Debug log
-        return response.status_code == 200
-    except Exception as e:
-        print("Error sending to Discord:", e)  # Debug log
-        return False
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(url, headers=headers, data=data, files=files)
+            print("Discord API response:", response.status_code, response.text)  # Debug log
+            if response.status_code in (200, 204):
+                return True
+            elif response.status_code == 429:
+                # Rate limited, get wait time from Discord's Retry-After header if available.
+                retry_after = response.headers.get("Retry-After")
+                if retry_after is not None:
+                    wait_time = float(retry_after)
+                else:
+                    wait_time = 2
+                print(f"Rate limited by Discord. Waiting {wait_time} seconds before retrying...")
+                time.sleep(wait_time)
+            else:
+                print(f"Discord API error: {response.status_code} {response.text}")
+                break  # don't retry on other errors
+        except Exception as e:
+            print("Error sending to Discord:", e)  # Debug log
+            time.sleep(2)
+    return False
