@@ -1,47 +1,116 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title><%= title %></title>
-    <link rel="stylesheet" href="/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        .admin-container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
-        table { width: 100%; border-collapse: collapse; background: white; }
-        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #e0e0e0; }
-        th { background: #f9f9f9; font-weight: 600; }
-        .btn { padding: 0.5rem 1rem; background: #6b3a0b; color: white; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; }
-        .btn-sm { font-size: 0.9rem; padding: 0.4rem 0.8rem; }
-    </style>
-</head>
-<body>
-    <%- include('../partials/header') %>
-    <div class="admin-container">
-        <h1><i class="fas fa-users"></i> User Management</h1>
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
 
-        <table>
-            <tr>
-                <th>Username</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Active</th>
-                <th>Last Login</th>
-                <th>Actions</th>
-            </tr>
-            <% users.forEach(u => { %>
-                <tr>
-                    <td><%= u.username %></td>
-                    <td><%= u.email %></td>
-                    <td><%= u.role %></td>
-                    <td><%= u.isActive ? '✓ Yes' : '✗ No' %></td>
-                    <td><%= u.lastLogin ? new Date(u.lastLogin).toLocaleString() : '-' %></td>
-                    <td>
-                        <a href="/admin/users/<%= u._id %>" class="btn btn-sm"><i class="fas fa-edit"></i> Edit</a>
-                    </td>
-                </tr>
-            <% }); %>
-        </table>
-
-        <a href="/admin/dashboard" class="btn" style="margin-top: 1rem;"><i class="fas fa-arrow-left"></i> Back</a>
+<main class="main-content">
+  <div class="page-header">
+    <div class="page-header-left">
+      <h1>User Management</h1>
+      <p class="page-subtitle">Manage user accounts across departments</p>
     </div>
-</body>
-</html>
+    <a href="/admin/export/report?type=users" class="btn btn-ghost">
+      <span class="material-icons">download</span>
+      Export CSV
+    </a>
+  </div>
+
+  <!-- Filters -->
+  <div class="filter-bar">
+    <form method="GET" action="/admin/users" class="filter-form" id="user-filter-form">
+      <select name="department" class="filter-select" onchange="this.form.submit()">
+        <option value="">All Departments</option>
+        <% DEPARTMENTS.forEach(d => { %>
+          <option value="<%= d %>" <%= filterDept === d ? 'selected' : '' %>><%= d %></option>
+        <% }); %>
+      </select>
+      <select name="status" class="filter-select" onchange="this.form.submit()">
+        <option value="">All Statuses</option>
+        <% Object.entries(ACCOUNT_STATUS_DISPLAY).forEach(([key, val]) => { %>
+          <option value="<%= key %>" <%= filterStatus === key ? 'selected' : '' %>><%= val.label %></option>
+        <% }); %>
+      </select>
+    </form>
+  </div>
+
+  <div class="table-container">
+    <table class="data-table" id="users-table">
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Name</th>
+          <th>Department</th>
+          <th>Position</th>
+          <th>Status</th>
+          <th>Admin Role</th>
+          <th>Last Login</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% users.forEach(u => { %>
+          <tr id="user-row-<%= u._id %>">
+            <td><strong><%= u.username %></strong></td>
+            <td><%= u.name %></td>
+            <td><%= u.department %></td>
+            <td><%= u.position %></td>
+            <td><span class="status-badge status-<%= u.account_status %>"><%= u.account_status %></span></td>
+            <td><%= u.admin_role === 'none' ? '-' : u.admin_role.replace(/_/g, ' ') %></td>
+            <td><%= u.last_login ? new Date(u.last_login).toLocaleDateString() : 'Never' %></td>
+            <td>
+              <a href="/admin/users/<%= u._id %>" class="btn btn-sm btn-ghost" title="Edit">
+                <span class="material-icons">edit</span>
+              </a>
+              <% if (u.account_status === 'rejected' || u.account_status === 'inactive') { %>
+                <button type="button" class="btn btn-sm btn-ghost btn-danger btn-delete-user" title="Permanently Delete Account" data-userid="<%= u._id %>" data-username="<%= u.username %>">
+                  <span class="material-icons" style="color: #de2827;">delete_forever</span>
+                </button>
+              <% } %>
+            </td>
+          </tr>
+        <% }); %>
+        <% if (users.length === 0) { %>
+          <tr><td colspan="8" class="empty-text">No users found</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const deleteButtons = document.querySelectorAll('.btn-delete-user');
+  deleteButtons.forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const userId = btn.getAttribute('data-userid');
+      const username = btn.getAttribute('data-username');
+      
+      if (!confirm(`Are you sure you want to PERMANENTLY delete the account for ${username}? This action cannot be undone.`)) {
+        return;
+      }
+      
+      try {
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        const headers = { 'Content-Type': 'application/json' };
+        if (csrfMeta) headers['CSRF-Token'] = csrfMeta.content;
+
+        const response = await fetch(`/admin/users/${userId}?hard=true`, {
+          method: 'DELETE',
+          headers: headers
+        });
+        
+        const data = await response.json();
+        if (response.ok) {
+          const row = document.getElementById(`user-row-${userId}`);
+          if (row) row.remove();
+        } else {
+          alert(data.error || 'Failed to delete user');
+        }
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        alert('An error occurred while deleting the user.');
+      }
+    });
+  });
+});
+</script>
+
+<%- include('../partials/footer') %>

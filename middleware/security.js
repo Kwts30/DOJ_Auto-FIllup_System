@@ -9,18 +9,32 @@ const helmetConfig = helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'", 'cdnjs.cloudflare.com'],
-      styleSrc: ["'self'", "'unsafe-inline'", 'cdnjs.cloudflare.com'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'cdnjs.cloudflare.com', 'fonts.googleapis.com'],
       imgSrc: ["'self'", 'data:', 'blob:'],
-      fontSrc: ["'self'", 'cdnjs.cloudflare.com', 'data:'],
+      fontSrc: ["'self'", 'cdnjs.cloudflare.com', 'fonts.gstatic.com', 'data:'],
       connectSrc: ["'self'"],
+      formAction: ["'self'"],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"]
     }
   },
   xssFilter: true,
   noSniff: true,
-  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  hsts: false
 });
+
+function requestSizeLimit(req, res, next) {
+  const configuredMaxBytes = Number.parseInt(process.env.MAX_REQUEST_BODY_BYTES || '', 10);
+  const maxBytes = Number.isSafeInteger(configuredMaxBytes) && configuredMaxBytes > 0
+    ? configuredMaxBytes
+    : 25 * 1024 * 1024;
+  const contentLength = Number.parseInt(req.get('content-length') || '0', 10);
+  if (Number.isSafeInteger(contentLength) && contentLength > maxBytes) {
+    return res.status(413).json({ error: 'Request body too large' });
+  }
+  return next();
+}
 
 // Input sanitization validators
 const sanitizeInput = (field) => {
@@ -53,12 +67,16 @@ const validateFormSubmission = [
 // Global error handler - don't expose stack traces in production
 const errorHandler = (err, req, res, next) => {
   const env = process.env.NODE_ENV || 'development';
-  const status = err.status || 500;
+  const isPayloadLimit = err.type === 'entity.too.large' || err.code === 'LIMIT_FILE_SIZE';
+  const isUploadLimit = typeof err.code === 'string' && err.code.startsWith('LIMIT_');
+  const status = err.status || err.statusCode || (isPayloadLimit ? 413 : (isUploadLimit ? 400 : 500));
 
   console.error('[Error]', err);
 
   const response = {
-    error: err.message || 'Internal Server Error'
+    error: isPayloadLimit
+      ? 'Request body too large'
+      : (isUploadLimit ? 'Invalid file upload' : (env === 'production' ? 'Internal Server Error' : (err.message || 'Internal Server Error')))
   };
 
   if (env === 'development') {
@@ -70,6 +88,7 @@ const errorHandler = (err, req, res, next) => {
 
 module.exports = {
   helmetConfig,
+  requestSizeLimit,
   sanitizeInput,
   validateFormSubmission,
   errorHandler

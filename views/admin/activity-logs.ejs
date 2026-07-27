@@ -1,50 +1,79 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title><%= title %></title>
-    <link rel="stylesheet" href="/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        .admin-container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
-        table { width: 100%; border-collapse: collapse; background: white; margin: 1rem 0; }
-        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #e0e0e0; }
-        th { background: #f9f9f9; font-weight: 600; }
-        .btn { padding: 0.5rem 1rem; background: #6b3a0b; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    </style>
-</head>
-<body>
-    <%- include('../partials/header') %>
-    <div class="admin-container">
-        <h1><i class="fas fa-list"></i> Activity Logs</h1>
-        <p>Total: <%= total %> | Page: <%= page %> of <%= pages %></p>
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
 
-        <table>
-            <tr>
-                <th>Action</th>
-                <th>Details</th>
-                <th>Result</th>
-                <th>Timestamp</th>
-            </tr>
-            <% logs.forEach(log => { %>
-                <tr>
-                    <td><%= log.action %></td>
-                    <td><%= log.details %></td>
-                    <td><%= log.result %></td>
-                    <td><%= new Date(log.timestamp).toLocaleString() %></td>
-                </tr>
-            <% }); %>
-        </table>
-
-        <div>
-            <% if (page > 1) { %>
-                <a href="?page=<%= page-1 %>" class="btn">Previous</a>
-            <% } %>
-            <% if (page < pages) { %>
-                <a href="?page=<%= page+1 %>" class="btn">Next</a>
-            <% } %>
-        </div>
-
-        <a href="/admin/dashboard" class="btn"><i class="fas fa-arrow-left"></i> Back</a>
+<main class="main-content">
+  <div class="page-header">
+    <div class="page-header-left">
+      <h1>Audit Log</h1>
+      <p class="page-subtitle">Append-only record of all system actions</p>
     </div>
-</body>
-</html>
+    <a href="/admin/export/report?type=audit" class="btn btn-ghost">
+      <span class="material-icons">download</span>
+      Export CSV
+    </a>
+  </div>
+
+  <!-- Pagination Info -->
+  <div class="pagination-info">
+    Showing page <%= page %> of <%= pages %> (<%= total %> total entries)
+  </div>
+
+  <div class="table-container">
+    <table class="data-table" id="audit-table">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Actor</th>
+          <th>Action</th>
+          <th>Target</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% logs.forEach(log => { %>
+          <tr>
+            <td class="table-date"><%= log.timestamp ? new Date(log.timestamp).toLocaleString() : '' %></td>
+            <td>
+              <% if (actorMap[log.actor?.toString()]) { %>
+                <span class="actor-badge"><%= actorMap[log.actor.toString()].username %></span>
+                <%= actorMap[log.actor.toString()].name %>
+              <% } else { %>
+                <span class="actor-badge">System</span>
+              <% } %>
+            </td>
+            <td><span class="action-badge action-<%= log.action %>"><%= log.action %></span></td>
+            <td>
+              <% if (log.target_type) { %>
+                <span class="target-type"><%= log.target_type %></span>
+                <% if (log.target_id) { %>
+                  <span class="target-id"><%= log.target_id.toString().substring(0, 12) %></span>
+                <% } %>
+              <% } %>
+            </td>
+            <td class="table-details"><%= log.details || '' %></td>
+          </tr>
+        <% }); %>
+        <% if (logs.length === 0) { %>
+          <tr><td colspan="5" class="empty-text">No audit log entries</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <% if (pages > 1) { %>
+    <div class="pagination">
+      <% if (page > 1) { %>
+        <a href="/admin/audit-log?page=<%= page - 1 %>" class="btn btn-sm btn-ghost">Previous</a>
+      <% } %>
+      <% for (let i = Math.max(1, page - 2); i <= Math.min(pages, page + 2); i++) { %>
+        <a href="/admin/audit-log?page=<%= i %>" class="btn btn-sm <%= i === page ? 'btn-primary' : 'btn-ghost' %>"><%= i %></a>
+      <% } %>
+      <% if (page < pages) { %>
+        <a href="/admin/audit-log?page=<%= page + 1 %>" class="btn btn-sm btn-ghost">Next</a>
+      <% } %>
+    </div>
+  <% } %>
+</main>
+
+<%- include('../partials/footer') %>

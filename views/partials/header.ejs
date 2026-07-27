@@ -1,44 +1,94 @@
-<!-- Header partial -->
-<header class="header">
-    <div class="header-container">
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+  <title>
+    <%= typeof title !=='undefined' ? title : 'Department of Justice Case Filing System' %>
+  </title>
+
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/style.css?v=3">
+  <script src="/js/theme.js"></script>
+  <script src="/js/csrf.js"></script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  
+  <!-- Vercel Web Analytics -->
+  <script defer src="https://cdn.vercel-insights.com/v1/script.js"></script>
+</head>
+
+<body class="app-layout">
+
+  <!-- Header Navigation — LSPD / DA Case Filing System -->
+  <% let headerClass='header--default' ; if (typeof department !=='undefined' ) { if (department==='LSPD' )
+    headerClass='header--lspd' ; else if (department==='DA' ) headerClass='header--da' ; else if (department==='DOJ' )
+    headerClass='header--doj' ; } else if (typeof admin_role !=='undefined' && admin_role !=='none' ) {
+    headerClass='header--admin' ; } %>
+    <header class="header <%= headerClass %>">
+      <div class="header-container">
+        <!-- Brand -->
         <div class="header-brand">
-            <img src="/assets/doj.png" class="header-logo" alt="Department of Justice Seal">
-            <img src="/assets/lossantos.webp" class="header-logo" alt="City of Los Santos">
-            <div class="header-text">
-                <h1>DEPARTMENT OF JUSTICE</h1>
-                <p>City of Los Santos | State of San Andreas</p>
+          <img src="/Assets/lossantos.webp" class="header-logo" alt="Los Santos">
+          <img src="/Assets/doj.png" class="header-logo" alt="District Attorney">
+          <div class="header-brand-text">
+            <h1>Department of Justice Case Filing System</h1>
+            <p>City of Los Santos | San Andreas</p>
+          </div>
+        </div>
+
+        <!-- User Info & Actions -->
+        <div class="header-actions">
+          <% if (typeof isAuthenticated !=='undefined' && isAuthenticated) { %>
+            <div class="header-user-info">
+              <div class="username">
+                <%= typeof name !=='undefined' ? name : 'User' %>
+              </div>
+              <div class="role">
+                <span class="material-icons role-icon">
+                  <%= (typeof admin_role !=='undefined' && (admin_role==='department_admin' ||
+                    admin_role==='super_admin' )) ? 'shield' : 'person' %>
+                </span>
+                <% if (typeof username !=='undefined' && username) { %>
+                  <%= username %>
+                    <% } %>
+                      <% if (typeof department !=='undefined' && department) { %>
+                        | <%= department %>
+                          <% } %>
+                            <% if (typeof position !=='undefined' && position) { %>
+                              - <%= position %>
+                                <% } %>
+              </div>
             </div>
-        </div>
-        <div style="display: flex; align-items: center; gap: 1rem;">
-            <% if (typeof isAuthenticated !== 'undefined' && isAuthenticated) { %>
-                <div style="color: white; font-size: 0.9rem;">
-                    <span style="display: block; font-weight: 600;"><%= typeof username !== 'undefined' ? username : '' %></span>
-                    <span style="opacity: 0.8;">
-                        <i class="fas fa-circle" style="color: <%= (typeof userRole !== 'undefined' && userRole === 'admin') ? '#e74c3c' : '#2ecc71' %>; font-size: 0.6rem;"></i>
-                        <%= (typeof userRole !== 'undefined' && userRole === 'admin') ? ' Admin' : ' User' %>
-                    </span>
-                </div>
-            <% } %>
-            <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle Menu">
-                <i class="fas fa-bars"></i>
-            </button>
-        </div>
-    </div>
-    <% if (typeof isAuthenticated !== 'undefined' && isAuthenticated) { %>
-        <div style="background: rgba(0,0,0,0.1); padding: 0.5rem 1.5rem; display: flex; justify-content: flex-end; gap: 1rem;">
-            <a href="/auth/profile" style="color: white; text-decoration: none; font-size: 0.9rem;">
-                <i class="fas fa-user-circle"></i> Profile
-            </a>
-            <% if (typeof userRole !== 'undefined' && userRole === 'admin') { %>
-                <a href="/admin/dashboard" style="color: white; text-decoration: none; font-size: 0.9rem;">
-                    <i class="fas fa-chart-line"></i> Admin
+
+            <div class="header-icon-group">
+              <button type="button" class="header-icon-btn theme-toggle-btn" title="Toggle Theme">
+                <span class="material-icons theme-toggle-icon">light_mode</span>
+              </button>
+
+              <a href="/profile" class="header-icon-btn" title="Profile">
+                <span class="material-icons">account_circle</span>
+              </a>
+
+              <% if (typeof admin_role !=='undefined' && (admin_role==='department_admin' || admin_role==='super_admin'
+                )) { %>
+                <a href="/admin/dashboard" class="header-icon-btn" title="Admin Dashboard">
+                  <span class="material-icons">admin_panel_settings</span>
                 </a>
+                <% } %>
+
+                  <form action="/logout" method="POST" class="form-inline">
+                    <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                    <button type="submit" class="header-icon-btn" title="Logout">
+                      <span class="material-icons">logout</span>
+                    </button>
+                  </form>
+            </div>
             <% } %>
-            <form action="/auth/logout" method="POST" style="display: inline;">
-                <button type="submit" style="background: none; border: none; color: white; cursor: pointer; font-size: 0.9rem; padding: 0;">
-                    <i class="fas fa-sign-out-alt"></i> Logout
-                </button>
-            </form>
         </div>
-    <% } %>
-</header>
+      </div>
+    </header>

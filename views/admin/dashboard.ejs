@@ -1,70 +1,213 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %></title>
-    <link rel="stylesheet" href="/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin: 2rem 0; }
-        .stat-card { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .stat-card h3 { color: #666; font-size: 0.9rem; margin-bottom: 0.5rem; }
-        .stat-number { font-size: 2.5rem; font-weight: 700; color: #6b3a0b; }
-        .admin-container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
-        .section { margin-bottom: 3rem; }
-        .section h2 { color: #6b3a0b; margin-bottom: 1rem; border-bottom: 2px solid #e0e0e0; padding-bottom: 0.5rem; }
-        table { width: 100%; border-collapse: collapse; background: white; }
-        th { background: #f9f9f9; padding: 1rem; text-align: left; font-weight: 600; color: #666; border-bottom: 2px solid #e0e0e0; }
-        td { padding: 1rem; border-bottom: 1px solid #e0e0e0; }
-        .btn { padding: 0.5rem 1rem; background: #6b3a0b; color: white; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; }
-    </style>
-</head>
-<body>
-    <%- include('../partials/header') %>
-    <div class="admin-container">
-        <h1><i class="fas fa-chart-line"></i> Admin Dashboard</h1>
-        
-        <div class="dashboard-grid">
-            <div class="stat-card">
-                <h3>Total Users</h3>
-                <div class="stat-number"><%= stats.totalUsers %></div>
-            </div>
-            <div class="stat-card">
-                <h3>Active Users</h3>
-                <div class="stat-number"><%= stats.activeUsers %></div>
-            </div>
-            <div class="stat-card">
-                <h3>Generated Documents</h3>
-                <div class="stat-number"><%= stats.totalDocuments %></div>
-            </div>
-            <div class="stat-card">
-                <h3>Activity Logs</h3>
-                <div class="stat-number"><%= stats.totalLogs %></div>
-            </div>
-        </div>
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
 
-        <div class="section">
-            <h2>Documents by Type</h2>
-            <table>
-                <tr><th>Document Type</th><th>Count</th></tr>
-                <% documentsByType.forEach(doc => { %>
-                    <tr><td><%= doc._id %></td><td><%= doc.count %></td></tr>
-                <% }); %>
-            </table>
-        </div>
-
-        <div class="section">
-            <h2>Quick Links</h2>
-            <a href="/admin/documents" class="btn"><i class="fas fa-file"></i> View Documents</a>
-            <a href="/admin/activity-logs" class="btn"><i class="fas fa-list"></i> Activity Logs</a>
-            <a href="/admin/reports" class="btn"><i class="fas fa-chart-bar"></i> Reports</a>
-            <a href="/admin/users" class="btn"><i class="fas fa-users"></i> Manage Users</a>
-        </div>
-
-        <div style="margin-top: 3rem;">
-            <a href="/" class="btn"><i class="fas fa-arrow-left"></i> Back to App</a>
-        </div>
+<main class="main-content">
+  <div class="page-header">
+    <div class="page-header-left">
+      <h1>Admin Dashboard</h1>
+      <p class="page-subtitle"><%= isSuperAdmin ? 'System-wide overview' : adminDept + ' department overview' %></p>
     </div>
-</body>
-</html>
+    <div class="page-header-actions">
+      <a href="/admin/export/report?type=filings" class="btn btn-ghost" title="Export Filings CSV">
+        <span class="material-icons">download</span>
+        Export Filings
+      </a>
+    </div>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <span class="material-icons stat-icon">group</span>
+      <div class="stat-content">
+        <span class="stat-value"><%= stats.totalUsers %></span>
+        <span class="stat-label">Total Users</span>
+      </div>
+    </div>
+    <div class="stat-card <%= stats.pendingAccounts > 0 ? 'stat-card--alert' : '' %>">
+      <span class="material-icons stat-icon">how_to_reg</span>
+      <div class="stat-content">
+        <span class="stat-value"><%= stats.pendingAccounts %></span>
+        <span class="stat-label">Pending Accounts</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <span class="material-icons stat-icon">folder</span>
+      <div class="stat-content">
+        <span class="stat-value"><%= stats.totalCases %></span>
+        <span class="stat-label">Total Cases</span>
+      </div>
+    </div>
+    <div class="stat-card <%= stats.escalatedCount > 0 ? 'stat-card--alert' : '' %>">
+      <span class="material-icons stat-icon">warning</span>
+      <div class="stat-content">
+        <span class="stat-value"><%= stats.escalatedCount %></span>
+        <span class="stat-label">Escalated</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <span class="material-icons stat-icon">speed</span>
+      <div class="stat-content">
+        <span class="stat-value"><%= stats.avgTurnaroundHours %>h</span>
+        <span class="stat-label">Avg Turnaround</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard-grid">
+    <!-- Pending Account Signups -->
+    <div class="dashboard-card">
+      <div class="dashboard-card-header">
+        <h2>Pending Account Verification</h2>
+        <a href="/admin/accounts" class="btn btn-sm btn-ghost">View All</a>
+      </div>
+      <% const allPending = [...pendingLSPD, ...pendingDOJ]; %>
+      <% if (allPending.length === 0) { %>
+        <p class="empty-text">No pending accounts</p>
+      <% } else { %>
+        <div class="mini-table">
+          <% allPending.slice(0, 5).forEach(u => { %>
+            <div class="mini-table-row">
+              <div class="mini-table-info">
+                <span class="mini-table-primary"><%= u.username %> - <%= u.name %></span>
+                <span class="mini-table-secondary"><%= u.department %> | <%= u.position %></span>
+              </div>
+              <div class="mini-table-actions">
+                <button class="btn btn-sm btn-success approve-account-btn" data-id="<%= u._id %>">
+                  Approve
+                </button>
+                <button class="btn btn-sm btn-danger reject-account-btn" data-id="<%= u._id %>">
+                  Reject
+                </button>
+              </div>
+            </div>
+          <% }); %>
+          <% if (allPending.length > 5) { %>
+            <p class="mini-table-more"><a href="/admin/accounts">+<%= allPending.length - 5 %> more</a></p>
+          <% } %>
+        </div>
+      <% } %>
+    </div>
+
+    <!-- Case Status Breakdown -->
+    <div class="dashboard-card">
+      <div class="dashboard-card-header">
+        <h2>Case Status Breakdown</h2>
+      </div>
+      <div class="status-breakdown">
+        <% caseStatusCounts.forEach(s => { %>
+          <% const display = STATUS_DISPLAY[s._id] || { label: s._id, color: 'status-draft' }; %>
+          <div class="status-row">
+            <span class="status-badge status-<%= s._id %>"><%= display.label %></span>
+            <span class="status-count"><%= s.count %></span>
+          </div>
+        <% }); %>
+        <% if (caseStatusCounts.length === 0) { %>
+          <p class="empty-text">No cases yet</p>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Escalated Filings -->
+    <% if (escalatedCases.length > 0) { %>
+      <div class="dashboard-card dashboard-card--alert">
+        <div class="dashboard-card-header">
+          <h2>Escalated Filings</h2>
+          <span class="badge badge-danger"><%= escalatedCases.length %></span>
+        </div>
+        <div class="mini-table">
+          <% escalatedCases.slice(0, 5).forEach(c => { %>
+            <div class="mini-table-row">
+              <div class="mini-table-info">
+                <span class="mini-table-primary"><%= c.filing_number %> - <%= c.accused_name %></span>
+                <span class="mini-table-secondary">
+                  Status: <%= c.status.replace(/_/g, ' ') %> |
+                  Age: <%= Math.round((Date.now() - new Date(c.created_at).getTime()) / (1000 * 60 * 60)) %>h
+                </span>
+              </div>
+              <a href="/da-review/<%= c.filing_number %>" class="btn btn-sm btn-ghost">View</a>
+            </div>
+          <% }); %>
+        </div>
+      </div>
+    <% } %>
+
+    <!-- Recent Activity -->
+    <div class="dashboard-card dashboard-card--wide">
+      <div class="dashboard-card-header">
+        <h2>Recent Activity</h2>
+        <a href="/admin/audit-log" class="btn btn-sm btn-ghost">Full Log</a>
+      </div>
+      <% if (recentActivity.length === 0) { %>
+        <p class="empty-text">No recent activity</p>
+      <% } else { %>
+        <div class="activity-list">
+          <% recentActivity.forEach(log => { %>
+            <div class="activity-item">
+              <span class="material-icons activity-icon">
+                <%
+                  const iconMap = {
+                    login: 'login', logout: 'logout', signup: 'person_add',
+                    create: 'add_circle', edit: 'edit', view: 'visibility',
+                    approve: 'check_circle', deny: 'cancel', submit: 'send',
+                    claim: 'assignment_ind', generate: 'auto_fix_high',
+                    delete: 'delete', revise: 'assignment_return', close: 'lock',
+                    download: 'download'
+                  };
+                %>
+                <%= iconMap[log.action] || 'radio_button_checked' %>
+              </span>
+              <div class="activity-info">
+                <span class="activity-actor">
+                  <% if (actorMap[log.actor?.toString()]) { %>
+                    <%= actorMap[log.actor.toString()].name %>
+                  <% } else { %>
+                    System
+                  <% } %>
+                </span>
+                <span class="activity-action"><%= log.action %></span>
+                <span class="activity-details"><%= log.details %></span>
+              </div>
+              <span class="activity-time"><%= log.timestamp ? new Date(log.timestamp).toLocaleString() : '' %></span>
+            </div>
+          <% }); %>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</main>
+
+<script>
+  // Quick approve/reject from dashboard
+  document.querySelectorAll('.approve-account-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try {
+        const res = await fetch('/admin/accounts/' + btn.dataset.id + '/approve', { method: 'POST' });
+        const result = await res.json();
+        if (result.success) location.reload();
+        else { alert(result.error); btn.disabled = false; }
+      } catch { alert('Failed to approve'); btn.disabled = false; }
+    });
+  });
+
+  document.querySelectorAll('.reject-account-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const reason = prompt('Enter rejection reason:');
+      if (!reason) return;
+      btn.disabled = true;
+      try {
+        const res = await fetch('/admin/accounts/' + btn.dataset.id + '/reject', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rejection_reason: reason })
+        });
+        const result = await res.json();
+        if (result.success) location.reload();
+        else { alert(result.error); btn.disabled = false; }
+      } catch { alert('Failed to reject'); btn.disabled = false; }
+    });
+  });
+</script>
+
+<%- include('../partials/footer') %>

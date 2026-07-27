@@ -1,0 +1,301 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<style>
+  .spin {
+    animation: spin 1s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  .drag-drop-zone {
+    border: 2px dashed var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-secondary);
+    padding: var(--space-xl);
+    text-align: center;
+    cursor: pointer;
+    transition: all var(--transition-base);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    min-height: 140px;
+    margin-top: 8px;
+  }
+  .drag-drop-zone:hover, .drag-drop-zone.dragover {
+    border-color: var(--color-accent) !important;
+    background: var(--color-bg-tertiary) !important;
+  }
+  .drag-drop-zone .drag-icon {
+    font-size: 3rem;
+    color: var(--color-text-tertiary);
+    transition: color var(--transition-base);
+  }
+  .drag-drop-zone:hover .drag-icon, .drag-drop-zone.dragover .drag-icon {
+    color: var(--color-accent);
+  }
+  .drag-drop-zone .drag-text {
+    font-size: var(--font-size-base);
+    color: var(--color-text-secondary);
+    margin: 0;
+  }
+  .drag-drop-zone .drag-text span {
+    color: var(--color-accent);
+    font-weight: var(--font-weight-semibold);
+    text-decoration: underline;
+  }
+</style>
+
+<main class="main-content">
+  <div class="page-header">
+    <div class="page-header-left">
+      <h1><%= editFiling ? `Edit Filing ${editFiling.filing_number}` : 'File New Request' %></h1>
+      <p class="page-subtitle"><%= editFiling ? 'Update filing details before resubmission' : 'Create a new filing for DA review' %></p>
+    </div>
+    <a href="/filings" class="btn btn-ghost">
+      <span class="material-icons">arrow_back</span>
+      Back to Filings
+    </a>
+  </div>
+
+  <% if (editFiling && editFiling.revision_note) { %>
+    <div class="alert alert-warning">
+      <span class="material-icons">assignment_return</span>
+      <div>
+        <strong>Revision Requested:</strong>
+        <% if (editFiling.revision_reason && REVISION_REASON_LABELS) { %>
+          <%= REVISION_REASON_LABELS[editFiling.revision_reason] || editFiling.revision_reason %>
+        <% } %>
+        <% if (editFiling.revision_note) { %>
+          <p style="margin-top: 4px;"><%= editFiling.revision_note %></p>
+        <% } %>
+      </div>
+    </div>
+  <% } %>
+
+  <form id="filing-form" class="form-layout" enctype="multipart/form-data"
+    data-is-edit="<%= editFiling ? 'true' : 'false' %>"
+    data-filing-number="<%= editFiling ? editFiling.filing_number : '' %>"
+    data-has-officer-signature="<%= typeof attachments !== 'undefined' && attachments && attachments.some(a => a.category === 'officer_signature') ? 'true' : 'false' %>"
+    data-filing-schemas='<%- JSON.stringify(FILING_SCHEMAS || {}) %>'>
+    <!-- Filing Type Information -->
+    <div class="form-section">
+      <div class="form-section-header">
+        <span class="material-icons">feed</span>
+        <h2>Filing Type Information</h2>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="filing_type">Filing Type <span class="required">*</span></label>
+          <select id="filing_type" name="filing_type" required>
+            <option value="" disabled <%= !editFiling || !editFiling.filing_type ? 'selected' : '' %>>Select a filing type...</option>
+            <% FILING_TYPES.forEach(ft => { %>
+              <option value="<%= ft.value %>" <%= editFiling && editFiling.filing_type === ft.value ? 'selected' : '' %>><%= ft.label %></option>
+            <% }); %>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Accused Information -->
+    <div class="form-section" id="accused-section">
+      <div class="form-section-header">
+        <span class="material-icons">person</span>
+        <h2>Accused Information</h2>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="accused_name">Accused Name <span class="required">*</span></label>
+          <input type="text" id="accused_name" name="accused_name"
+            value="<%= editFiling ? editFiling.accused_name : '' %>"
+            placeholder="Full legal name" required>
+        </div>
+        <div class="form-group" id="accused-id-group">
+          <label for="accused_id_number">ID Number</label>
+          <input type="text" id="accused_id_number" name="accused_id_number"
+            value="<%= editFiling ? (editFiling.accused_id_number || '') : '' %>"
+            placeholder="State ID or SSN (if known)">
+        </div>
+      </div>
+    </div>
+
+    <!-- Charges -->
+    <div class="form-section" id="charges-section">
+      <div class="form-section-header">
+        <span class="material-icons">gavel</span>
+        <h2>Charges <span class="required">*</span></h2>
+      </div>
+      <div class="charges-selector" id="charges-selector">
+        <% const selectedCharges = editFiling ? (editFiling.charges || []) : []; %>
+        <% charges.forEach(charge => { %>
+          <label class="charge-chip" id="charge-<%= charge.code %>">
+            <input type="checkbox" name="charges" value="<%= charge.code %>"
+              <%= selectedCharges.includes(charge.code) ? 'checked' : '' %>>
+            <span class="charge-chip-label">
+              <span class="charge-code"><%= charge.code %></span>
+              <span class="charge-name"><%= charge.label %></span>
+              <span class="charge-category category-<%= charge.category %>"><%= charge.category %></span>
+            </span>
+          </label>
+        <% }); %>
+      </div>
+    </div>
+
+    <!-- Narrative -->
+    <div class="form-section" id="narrative-section">
+      <div class="form-section-header">
+        <span class="material-icons">description</span>
+        <h2 id="narrative-title">Narrative / Affidavit</h2>
+      </div>
+      <div class="form-group">
+        <label for="narrative" id="narrative-label">Narrative <span class="required">*</span></label>
+        <textarea id="narrative" name="narrative" rows="8"
+          placeholder="Describe the events, circumstances, and facts in detail..."
+          required><%= editFiling ? (editFiling.narrative || '') : '' %></textarea>
+      </div>
+    </div>
+
+    <!-- Officer Signature -->
+    <div class="form-section" id="officer-signature-section">
+      <div class="form-section-header">
+        <span class="material-icons">draw</span>
+        <h2>Officer Signature</h2>
+      </div>
+      <div class="form-group" style="background: var(--color-bg-secondary); padding: var(--space-md); border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: var(--space-md);">
+        <label for="officer-signature-file" style="font-weight: var(--font-weight-semibold); display: block; margin-bottom: var(--space-xs);">
+          Officer Signature Image (PNG/JPG) <span class="required">*</span>
+        </label>
+        <% const officerSigAtt = typeof attachments !== 'undefined' && attachments ? attachments.find(a => a.category === 'officer_signature') : null; %>
+        <% if (officerSigAtt) { %>
+          <div id="existing-officer-signature" style="display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-sm); background: var(--color-bg-primary); padding: var(--space-sm); border-radius: var(--radius-sm); border: 1px solid var(--color-border);">
+            <span class="material-icons" style="color: var(--color-success);">check_circle</span>
+            <span style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">Signature already uploaded: <strong><%= officerSigAtt.original_name %></strong></span>
+          </div>
+        <% } %>
+        <input type="file" id="officer-signature-file" accept="image/*" class="form-control" style="width: 100%; max-width: 400px;" <%= officerSigAtt ? '' : 'required' %>>
+        <p class="form-help" style="margin-top: var(--space-xs); color: var(--color-text-secondary); font-size: var(--font-size-sm);">Please upload a scanned image or drawing of your handwritten signature. It will be printed on the generated Arrest Warrant.</p>
+      </div>
+    </div>
+
+    <!-- Evidence Attachments -->
+    <div class="form-section" id="attachments-section">
+      <div class="form-section-header">
+        <span class="material-icons">attach_file</span>
+        <h2>Evidence Attachments</h2>
+      </div>
+
+      <% if (editFiling) { %>
+        <div id="attachments-list" style="margin-bottom: var(--space-md);">
+          <% if (typeof attachments !== 'undefined' && attachments && attachments.length > 0) { %>
+            <% const evidenceAtts = attachments.filter(a => a.category !== 'officer_signature' && a.category !== 'da_signature') %>
+            <% if (evidenceAtts.length > 0) { %>
+              <% evidenceAtts.forEach(att => { %>
+                <div class="attachment-item" data-id="<%= att._id %>" style="display: flex; align-items: center; justify-content: space-between; padding: var(--space-sm) var(--space-md); border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: var(--space-xs); background: var(--color-bg-secondary);">
+                  <div style="display: flex; align-items: center; gap: var(--space-sm);">
+                    <span class="material-icons">insert_drive_file</span>
+                    <span class="attachment-name"><%= att.original_name %></span>
+                    <span class="attachment-category" style="font-size: var(--font-size-xs); background: var(--color-accent-light); color: var(--color-primary); padding: 2px 6px; border-radius: var(--radius-sm);"><%= att.category %></span>
+                  </div>
+                  <button type="button" class="btn btn-icon btn-danger-ghost delete-attachment"
+                    data-filing="<%= editFiling.filing_number %>" data-id="<%= att._id %>" title="Remove">
+                    <span class="material-icons">close</span>
+                  </button>
+                </div>
+              <% }); %>
+            <% } else { %>
+              <p class="empty-text">No attachments yet</p>
+            <% } %>
+          <% } else { %>
+            <p class="empty-text">No attachments yet</p>
+          <% } %>
+        </div>
+      <% } %>
+
+      <div class="upload-area" id="upload-area">
+        <label style="font-weight: var(--font-weight-semibold); margin-bottom: var(--space-xs); display: block;">Evidence Exhibits</label>
+        <div id="exhibits-list-container">
+          <div class="exhibit-slot-item" style="display: flex; gap: var(--space-md); align-items: center; margin-bottom: var(--space-sm); background: var(--color-bg-secondary); padding: var(--space-sm); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+            <div style="flex: 1;">
+              <label style="font-size: var(--font-size-xs); color: var(--color-text-secondary); display: block; margin-bottom: 4px;">Exhibit File</label>
+              <input type="file" name="files" class="exhibit-file-input form-control" accept="image/*,.pdf,video/*,.txt" style="width: 100%;">
+            </div>
+            <div style="width: 200px;">
+              <label style="font-size: var(--font-size-xs); color: var(--color-text-secondary); display: block; margin-bottom: 4px;">Category</label>
+              <select class="exhibit-category-select form-control" style="width: 100%;">
+                <% ATTACHMENT_TYPES.forEach(t => { %>
+                  <option value="<%= t.value %>" <%= t.value === 'evidence_photo' ? 'selected' : '' %>><%= t.label %></option>
+                <% }); %>
+              </select>
+            </div>
+            <button type="button" class="btn btn-icon btn-danger-ghost remove-exhibit-slot" style="margin-top: 20px; display: none;" title="Remove Slot">
+              <span class="material-icons">close</span>
+            </button>
+          </div>
+        </div>
+        <button type="button" class="btn btn-ghost" id="add-exhibit-slot-btn" style="margin-top: var(--space-sm); display: flex; align-items: center; gap: 4px;">
+          <span class="material-icons">add</span>
+          Add Another Exhibit
+        </button>
+
+        <% if (editFiling) { %>
+          <button type="button" class="btn btn-secondary" id="upload-btn" style="margin-top: var(--space-md);">
+            <span class="material-icons">upload</span>
+            Upload Attachments Immediately
+          </button>
+        <% } else { %>
+          <p class="form-help" style="margin-top: 15px; color: var(--color-text-secondary); font-size: var(--font-size-sm);">Files selected in the exhibits above will be uploaded automatically when you Save as Draft.</p>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="form-actions">
+      <button type="button" class="btn btn-secondary" id="save-draft-btn">
+        <span class="material-icons">save</span>
+        Save as Draft
+      </button>
+      <button type="button" class="btn btn-primary" id="submit-filing-btn">
+        <span class="material-icons">send</span>
+        Submit to DA
+      </button>
+    </div>
+  </form>
+</main>
+
+<!-- E-Signature Modal -->
+<div class="modal-overlay" id="esign-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>E-Signature Attestation</h2>
+      <button type="button" class="btn btn-icon" id="esign-close">
+        <span class="material-icons">close</span>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p>By submitting this filing, you attest that all information provided is accurate and complete to the best of your knowledge.</p>
+      <div class="form-group">
+        <label for="esign-password">Re-enter your password to confirm</label>
+        <input type="password" id="esign-password" placeholder="Your password" required>
+      </div>
+      <label class="checkbox-label">
+        <input type="checkbox" id="esign-attest">
+        <span>I attest that the information in this filing is true, accurate, and complete.</span>
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" id="esign-cancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="esign-confirm" disabled>
+        <span class="material-icons">check</span>
+        Confirm and Submit
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/filingForm.js"></script>
+
+<%- include('../partials/footer') %>

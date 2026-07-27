@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
 npm-debug.log*
 yarn.lock
 
@@ -32,9 +31,16 @@ logs/
 pid
 *.pid
 *.seed
+uploads/
+temp_affidavit/
+temp_warrant/
+temp_affidavit.zip
+temp_warrant.zip
 
 # Build artifacts
 dist/
 build/
+node_modules
+
 
 uploads/

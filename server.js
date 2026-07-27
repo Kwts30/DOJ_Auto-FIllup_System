@@ -1,4 +1,5 @@
 // Main Express server entry point
+// LSPD / DA Filing System
 // Run with: npm start
 
 require('dotenv').config();
@@ -9,131 +10,171 @@ const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
 const path = require('path');
+const mongoSanitize = require('express-mongo-sanitize');
 
-const { helmetConfig, errorHandler } = require('./middleware/security');
-const { rateLimitMiddleware, initializeDb } = require('./middleware/rateLimit');
+const { helmetConfig, requestSizeLimit, errorHandler } = require('./middleware/security');
 const { initializeDatabase } = require('./utils/db');
+const { createSessionStore } = require('./utils/mongoSessionStore');
+const { csrfProtection } = require('./middleware/csrf');
+const { rateLimitMiddleware } = require('./middleware/rateLimit');
+const { sessionSecret, validateProductionConfiguration } = require('./config/runtime');
 const { initializeAdmin } = require('./utils/initAdmin');
-const { authenticateUser, requireRole } = require('./middleware/auth');
+const { authenticateUser, requireRole, requireDepartment, requireAdminRole, setUserContext } = require('./middleware/auth');
+const { ADMIN_ROLES } = require('./config/constants');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/doj-auto-fillup';
+const MONGODB_URI = process.env.MONGODB_URI;
 
-// ===== Initialize Database =====
-let dbInitialized = false;
-
-async function startServer() {
-  try {
-    // Initialize new database system (users, documents, logs)
-    await initializeDatabase(MONGODB_URI);
-    console.log('✓ Database initialized for authentication system');
-
-    // Initialize admin account if first run
+// ===== Initialize Database Asynchronously =====
+// We start the connection process, but do not block Express from attaching routes.
+let dbPromise;
+try {
+  validateProductionConfiguration();
+  dbPromise = initializeDatabase(MONGODB_URI).then(async (db) => {
+    console.log('  Database initialized');
     await initializeAdmin();
-
-    // Initialize rate limiting database
-    await initializeDb(MONGODB_URI);
-    dbInitialized = true;
-    console.log('✓ MongoDB connected for rate limiting');
-  } catch (error) {
-    console.warn('⚠ MongoDB not available, rate limiting will be skipped:', error.message);
-  }
-
-  // ===== Middleware Setup =====
-
-  // Security headers
-  app.use(helmetConfig);
-
-  // Compression
-  app.use(compression());
-
-  // Logging
-  app.use(morgan('combined'));
-
-  // Static files - serve assets without rate limiting
-  app.use(express.static(path.join(__dirname, 'public')));
-
-  // Body parsers
-  app.use(express.json({ limit: '10mb' }));
-  app.use(express.urlencoded({ limit: '10mb', extended: true }));
-  app.use(cookieParser());
-
-  // Sessions
-  app.use(session({
-    secret: process.env.SESSION_SECRET || 'dev-secret-key-change-in-production',
-    resave: false,
-    saveUninitialized: true,
-    cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: true,
-      maxAge: 60 * 60 * 1000 // 1 hour
-    }
-  }));
-
-  // Template engine
-  app.set('view engine', 'ejs');
-  app.set('views', path.join(__dirname, 'views'));
-
-  // ===== User Context for EJS =====
-  const { setUserContext } = require('./middleware/auth');
-  app.use(setUserContext);
-
-  // ===== Rate Limiting Middleware =====
-  app.use(rateLimitMiddleware);
-
-  // ===== Routes =====
-
-  // Auth routes (public - no authentication needed)
-  app.use('/auth', require('./routes/auth'));
-
-  // Health check (public)
-  app.use('/health', require('./routes/health'));
-
-  // Protected routes - require authentication
-  app.use('/', authenticateUser, require('./routes/index'));
-  app.use('/api', authenticateUser, require('./routes/api'));
-
-  // Admin routes - require authentication + admin role
-  app.use('/admin', authenticateUser, requireRole('admin'), require('./routes/admin'));
-  app.use('/admin/users', authenticateUser, requireRole('admin'), require('./routes/users'));
-
-  // 404 handler
-  app.use((req, res) => {
-    res.status(404).render('error', { message: 'Page not found' });
+    console.log('  Admin and reference data initialized');
+    return db;
+  }).catch(error => {
+    console.error('Database initialization failed:', error.message);
+    throw error;
   });
+} catch (error) {
+  console.error('Configuration error:', error.message);
+  dbPromise = Promise.reject(error);
+}
 
-  // Global error handler
-  app.use(errorHandler);
+// ===== Middleware Setup =====
 
-  // ===== Start Server =====
-  app.listen(PORT, () => {
-    console.log(`\n╔════════════════════════════════════════╗`);
-    console.log(`║   DOJ Auto-Fillup System v2.0.0       ║`);
-    console.log(`║   🔐 Authentication: Enabled           ║`);
-    console.log(`║   🚀 Server running on port ${PORT}    ║`);
-    console.log(`║   📊 Rate Limit: 50 requests/hour      ║`);
-    console.log(`║   🗄️  MongoDB: ${dbInitialized ? 'Connected' : 'Offline'}         ║`);
-    console.log(`║   🔗 http://localhost:${PORT}           ║`);
-    console.log(`╚════════════════════════════════════════╝\n`);
+// Security headers
+app.disable('x-powered-by');
+app.use(helmetConfig);
+
+// Trust the first proxy (e.g., Vercel Edge, Nginx, Heroku). 
+// Without this, Express will refuse to set 'secure: true' cookies because it thinks the connection from the proxy is HTTP.
+app.set('trust proxy', 1);
+
+// Compression & Logging
+app.use(compression());
+app.use(morgan('combined'));
+
+// Static files (served immediately, no DB wait needed)
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/Assets', express.static(path.join(__dirname, 'public', 'Assets')));
+
+// Wait for Database before processing dynamic routes/parsers
+app.use(async (req, res, next) => {
+  try {
+    await dbPromise;
+    next();
+  } catch (error) {
+    res.status(500).send('Server initialization failed: ' + error.message);
+  }
+});
+
+// Data sanitization against NoSQL query injection
+app.use(mongoSanitize());
+
+// Body parsers
+app.use(requestSizeLimit);
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(cookieParser());
+
+// Sessions
+app.use(session({
+  name: process.env.SESSION_COOKIE_NAME || 'filing.sid',
+  secret: sessionSecret,
+  store: createSessionStore(),
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: process.env.SESSION_SAME_SITE || 'lax',
+    maxAge: parseInt(process.env.SESSION_MAX_AGE_MS || '3600000', 10)
+  }
+}));
+
+app.use(rateLimitMiddleware);
+app.use(csrfProtection);
+
+// Template engine
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
+// User context for EJS templates
+app.use(setUserContext);
+
+// ===== Routes =====
+
+// Public routes (no authentication)
+app.use('/', require('./routes/auth'));
+app.use('/health', require('./routes/health'));
+
+// Protected files are served only after filing-level authorization.
+app.use('/files', authenticateUser, require('./routes/files'));
+
+// Public: homepage
+app.use('/', require('./routes/public'));
+
+// Protected: root redirect and dashboard
+app.use('/', authenticateUser, require('./routes/index'));
+
+// Protected: LSPD filing (any authenticated user can view, but filing is LSPD)
+app.use('/filings', authenticateUser, require('./routes/filings'));
+
+// Protected: DA review queue (DA department only)
+app.use('/da-review', authenticateUser, requireDepartment('DA'), require('./routes/da_review'));
+
+// Protected: API routes
+app.use('/api', authenticateUser, require('./routes/api'));
+
+// Admin routes (department_admin or super_admin)
+app.use('/admin',
+  authenticateUser,
+  requireAdminRole(ADMIN_ROLES.DEPARTMENT_ADMIN, ADMIN_ROLES.SUPER_ADMIN),
+  require('./routes/admin')
+);
+app.use('/admin/users',
+  authenticateUser,
+  requireAdminRole(ADMIN_ROLES.DEPARTMENT_ADMIN, ADMIN_ROLES.SUPER_ADMIN),
+  require('./routes/users')
+);
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).render('error', { message: 'Page not found' });
+});
+
+// Global error handler
+app.use(errorHandler);
+
+// ===== Start Server =====
+// On Vercel, we export the app — listen() is only called in direct Node execution.
+if (process.env.VERCEL !== '1') {
+  dbPromise.then(() => {
+    app.listen(PORT, () => {
+      console.log(`\n  Department of Justice Case Filing System v3.0.0`);
+      console.log(`  Server running on port ${PORT}`);
+      console.log(`  http://localhost:${PORT}\n`);
+    });
+  }).catch(() => {
+    process.exit(1);
   });
 }
 
-// Handle graceful shutdown
+// Graceful shutdown
 process.on('SIGINT', () => {
-  console.log('\n✓ Server shutting down gracefully...');
+  console.log('\nServer shutting down...');
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
-  console.log('\n✓ Server shutting down...');
+  console.log('\nServer shutting down...');
   process.exit(0);
 });
 
-// Start the server
-startServer().catch(error => {
-  console.error('Failed to start server:', error);
-  process.exit(1);
-});
-
 module.exports = app;
+

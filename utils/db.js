@@ -1,11 +1,14 @@
-// Database connection and models initialization
+// Database connection and collection initialization
+// LSPD / DOJ Case Filing System — fresh start (no legacy data migration)
 
 const { MongoClient, ObjectId } = require('mongodb');
 
 let db = null;
 let client = null;
 
-// Initialize database connection
+/**
+ * Initialize database connection and set up all collections with indexes
+ */
 async function initializeDatabase(mongoUri) {
   if (db) return db;
 
@@ -13,67 +16,199 @@ async function initializeDatabase(mongoUri) {
     console.log('Attempting to connect to MongoDB...');
     client = new MongoClient(mongoUri, {
       serverSelectionTimeoutMS: 5000,
-      tls: false  // Disable TLS for local development
+      maxPoolSize: 10,
+      retryWrites: true,
+      tls: mongoUri.includes('mongodb+srv') ? true : false
     });
     await client.connect();
-    db = client.db('doj-auto-fillup');
-    console.log('✓ Connected to MongoDB Atlas');
+    await client.db('admin').command({ ping: 1 });
+    db = client.db('doj-case-filing');
+    // Expose client on db so connect-mongo can reuse the connection
+    db.client = client;
+    console.log('Connected to MongoDB Atlas');
 
-    // Create collections if they don't exist
+    // Get existing collection names
     const collections = await db.listCollections().toArray();
     const collectionNames = collections.map(c => c.name);
 
+    // Drop only truly obsolete collections from the previous system.
+    // Do NOT drop active collections like documents or generated_documents.
+    const legacyCollections = ['activity_logs'];
+    for (const col of legacyCollections) {
+      if (collectionNames.includes(col)) {
+        try {
+          await db.collection(col).drop();
+          console.log(`  Dropped legacy collection: ${col}`);
+        } catch (e) {
+          // Ignore errors on drop
+        }
+      }
+    }
+
+    // ───── USERS ─────
     if (!collectionNames.includes('users')) {
       await db.createCollection('users');
-      await db.collection('users').createIndex({ username: 1 }, { unique: true });
-      await db.collection('users').createIndex({ email: 1 }, { unique: true });
+    }
+    try {
+      await db.collection('users').dropIndex('badge_number_1');
+      console.log('  Dropped legacy index: badge_number_1');
+    } catch (e) {
+      // Ignore if index does not exist
+    }
+    await ensureIndex(db, 'users', { username: 1 }, { unique: true });
+    await ensureIndex(db, 'users', { department: 1 });
+    await ensureIndex(db, 'users', { account_status: 1 });
+    await ensureIndex(db, 'users', { admin_role: 1 });
+
+    // ───── FILINGS ─────
+    if (!collectionNames.includes('filings')) {
+      await db.createCollection('filings');
+    }
+    await ensureIndex(db, 'filings', { filing_number: 1 }, { unique: true });
+    await ensureIndex(db, 'filings', { status: 1 });
+    await ensureIndex(db, 'filings', { submitted_by: 1 });
+    await ensureIndex(db, 'filings', { da_reviewer: 1 });
+    await ensureIndex(db, 'filings', { created_at: 1 });
+    await ensureIndex(db, 'filings', { updated_at: 1 });
+    await ensureIndex(db, 'filings', { status: 1, updated_at: -1 });
+    await ensureIndex(db, 'filings', { submitted_by: 1, status: 1 });
+    await ensureIndex(db, 'filings', { da_reviewer: 1, status: 1 });
+
+    // Atomic daily filing-number counters
+    if (!collectionNames.includes('filing_sequences')) {
+      await db.createCollection('filing_sequences');
     }
 
+    // ───── ATTACHMENTS ─────
+    if (!collectionNames.includes('attachments')) {
+      await db.createCollection('attachments');
+    }
+    await ensureIndex(db, 'attachments', { filing_number: 1 });
+    await ensureIndex(db, 'attachments', { uploaded_by: 1 });
+
+    // ───── PROSECUTION RECORDS ─────
+    if (!collectionNames.includes('prosecution_records')) {
+      await db.createCollection('prosecution_records');
+    }
+    await ensureIndex(db, 'prosecution_records', { filing_number: 1 });
+
+    // ───── GENERATED DOCUMENTS ─────
     if (!collectionNames.includes('generated_documents')) {
       await db.createCollection('generated_documents');
-      await db.collection('generated_documents').createIndex({ userId: 1 });
-      await db.collection('generated_documents').createIndex({ createdAt: 1 });
-      await db.collection('generated_documents').createIndex({ documentType: 1 });
+    }
+    await ensureIndex(db, 'generated_documents', { filing_number: 1 });
+    await ensureIndex(db, 'generated_documents', { filing_number: 1, version: -1 });
+
+    // ───── TIMELINE ENTRIES ─────
+    if (!collectionNames.includes('timeline_entries')) {
+      await db.createCollection('timeline_entries');
+    }
+    await ensureIndex(db, 'timeline_entries', { filing_number: 1 });
+    await ensureIndex(db, 'timeline_entries', { changed_by: 1 });
+    await ensureIndex(db, 'timeline_entries', { timestamp: 1 });
+
+    // ───── AUDIT LOGS (append-only, no TTL — intentionally no auto-delete) ─────
+    if (!collectionNames.includes('audit_logs')) {
+      await db.createCollection('audit_logs');
+    }
+    await ensureIndex(db, 'audit_logs', { actor: 1 });
+    await ensureIndex(db, 'audit_logs', { action: 1 });
+    await ensureIndex(db, 'audit_logs', { target_type: 1, target_id: 1 });
+    await ensureIndex(db, 'audit_logs', { timestamp: 1 });
+    // Remove any existing TTL index on audit_logs — this must be append-only
+    try {
+      const indexes = await db.collection('audit_logs').listIndexes().toArray();
+      for (const idx of indexes) {
+        if (idx.expireAfterSeconds !== undefined) {
+          await db.collection('audit_logs').dropIndex(idx.name);
+          console.log('  Removed TTL index from audit_logs (append-only requirement)');
+        }
+      }
+    } catch (e) {
+      // Ignore — collection might not have indexes yet
     }
 
-    if (!collectionNames.includes('activity_logs')) {
-      await db.createCollection('activity_logs');
-      await db.collection('activity_logs').createIndex({ userId: 1 });
-      await db.collection('activity_logs').createIndex({ timestamp: 1 });
-      await db.collection('activity_logs').createIndex({ action: 1 });
-      // TTL index: auto-delete logs after 90 days
-      await db.collection('activity_logs').createIndex({ timestamp: 1 }, { expireAfterSeconds: 7776000 });
+    // ───── DEPARTMENTS (reference) ─────
+    if (!collectionNames.includes('departments')) {
+      await db.createCollection('departments');
     }
+    await ensureIndex(db, 'departments', { code: 1 }, { unique: true });
 
-    if (!collectionNames.includes('rate_limit')) {
-      await db.createCollection('rate_limit');
-      await db.collection('rate_limit').createIndex('createdAt', { expireAfterSeconds: 3600 });
-      await db.collection('rate_limit').createIndex({ identifier: 1 });
+    // ───── CHARGES (reference) ─────
+    if (!collectionNames.includes('charges')) {
+      await db.createCollection('charges');
     }
+    await ensureIndex(db, 'charges', { code: 1 }, { unique: true });
+    await ensureIndex(db, 'charges', { category: 1 });
 
+    // ───── SESSIONS ─────
+    if (!collectionNames.includes('sessions')) {
+      await db.createCollection('sessions');
+    }
+    await ensureIndex(db, 'sessions', { user_id: 1 });
+    await ensureIndex(db, 'sessions', { token: 1 }, { unique: true });
+    await ensureIndex(db, 'sessions', { expires_at: 1 }, { expireAfterSeconds: 0 });
+
+    // Counter documents are one per IP/window, not one per request. Retain the
+    // old collection for a safe, non-destructive deployment migration.
+    if (!collectionNames.includes('rate_limit_windows')) {
+      await db.createCollection('rate_limit_windows');
+    }
+    await ensureIndex(db, 'rate_limit_windows', { expires_at: 1 }, { expireAfterSeconds: 0 });
+
+    console.log('Database collections and indexes initialized');
     return db;
   } catch (mongoError) {
-    console.warn('⚠️  MongoDB connection failed:', mongoError.message);
-    console.log('📝 Using in-memory database for development...\n');
+    if (process.env.NODE_ENV === 'production') {
+      throw mongoError;
+    }
+
+    console.warn('MongoDB connection failed:', mongoError.message);
+    console.log('Using in-memory database for development...\n');
 
     // Fallback to in-memory database
     const MemoryDB = require('./memoryDb');
     db = MemoryDB;
 
     // Initialize collections
-    await db.createCollection('users');
-    await db.createCollection('generated_documents');
-    await db.createCollection('activity_logs');
-    await db.createCollection('rate_limit');
+    const memoryCollections = [
+      'users', 'filings', 'filing_sequences', 'attachments', 'prosecution_records',
+      'generated_documents', 'timeline_entries', 'audit_logs', 'app_sessions',
+      'departments', 'charges', 'sessions', 'rate_limit', 'rate_limit_windows'
+    ];
 
-    console.log('✓ In-memory database initialized');
-    console.log('⚠️  Note: Data will be lost when the server restarts\n');
+    for (const col of memoryCollections) {
+      try {
+        await db.createCollection(col);
+      } catch (e) {
+        // Ignore if already exists
+      }
+    }
+
+    console.log('In-memory database initialized');
+    console.log('Note: Data will be lost when the server restarts\n');
 
     return db;
   }
 }
 
-// Get database instance
+/**
+ * Safely create an index (ignore errors if index already exists with same spec)
+ */
+async function ensureIndex(database, collectionName, keys, options = {}) {
+  try {
+    await database.collection(collectionName).createIndex(keys, options);
+  } catch (e) {
+    // Index might already exist with different options — log but don't fail
+    if (e.code !== 85 && e.code !== 86) {
+      console.warn(`  Index warning on ${collectionName}:`, e.message);
+    }
+  }
+}
+
+/**
+ * Get database instance
+ */
 function getDatabase() {
   if (!db) {
     throw new Error('Database not initialized. Call initializeDatabase first.');
@@ -81,7 +216,9 @@ function getDatabase() {
   return db;
 }
 
-// Close database connection
+/**
+ * Close database connection
+ */
 async function closeDatabase() {
   if (client) {
     await client.close();
@@ -90,9 +227,32 @@ async function closeDatabase() {
   }
 }
 
+/**
+ * Get the raw MongoClient instance
+ */
+function getClient() {
+  return client;
+}
+
+/**
+ * Get a Promise that resolves to the MongoClient instance.
+ * Useful for connect-mongo which needs a Promise.
+ */
+async function getClientPromise() {
+  if (client) return client;
+  // If not yet connected, we wait for a short bit (polling) or we just rely on initializeDatabase being called first
+  // A better way is to just return a promise that resolves when client is ready.
+  while (!client) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  return client;
+}
+
 module.exports = {
   initializeDatabase,
   getDatabase,
+  getClient,
+  getClientPromise,
   closeDatabase,
   ObjectId
 };
