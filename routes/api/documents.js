@@ -173,21 +173,32 @@ router.get('/:id/pdf', async (req, res) => {
   try {
     const context = await loadAuthorizedDocument(req, res);
     if (!context) return;
-    const pdfStorageKey = context.doc.pdf_storage_key;
-    if (!pdfStorageKey) {
-      return res.status(404).send('PDF not available. Please regenerate the document.');
-    }
-
-    const { resolveStorageKey } = require('../../utils/fileStorage');
-    const filePath = resolveStorageKey(pdfStorageKey);
-    if (!filePath || !require('fs').existsSync(filePath)) {
-      return res.status(404).send('PDF file not found on server.');
-    }
+    const { doc, db } = context;
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="document_${req.params.id}.pdf"`);
-    await logDocumentAccess(req, context.doc, 'download');
-    res.sendFile(filePath);
+    await logDocumentAccess(req, doc, 'download');
+
+    if (doc.pdf_gridfs_id) {
+      const { streamFileFromGridFS } = require('../../utils/fileStorage');
+      return streamFileFromGridFS(db, doc.pdf_gridfs_id, res, 'generated_docs');
+    }
+
+    if (doc.pdf_base64) {
+      const buffer = Buffer.from(doc.pdf_base64, 'base64');
+      return res.send(buffer);
+    }
+
+    const pdfStorageKey = doc.pdf_storage_key;
+    if (pdfStorageKey) {
+      const { resolveStorageKey } = require('../../utils/fileStorage');
+      const filePath = resolveStorageKey(pdfStorageKey);
+      if (filePath && require('fs').existsSync(filePath)) {
+        return res.sendFile(filePath);
+      }
+    }
+
+    return res.status(404).send('PDF not available.');
   } catch (error) {
     console.error('Serve PDF error:', error);
     res.status(500).send('Error serving PDF');
@@ -199,14 +210,23 @@ router.get('/:id/docx', async (req, res) => {
   try {
     const context = await loadAuthorizedDocument(req, res);
     if (!context) return;
-    const base64Str = context.doc.docx_base64;
-    if (!base64Str) return res.status(404).send('Not found');
+    const { doc, db } = context;
 
-    const buffer = Buffer.from(base64Str, 'base64');
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="document_${req.params.id}.docx"`);
-    await logDocumentAccess(req, context.doc);
-    res.send(buffer);
+    await logDocumentAccess(req, doc);
+
+    if (doc.docx_gridfs_id) {
+      const { streamFileFromGridFS } = require('../../utils/fileStorage');
+      return streamFileFromGridFS(db, doc.docx_gridfs_id, res, 'generated_docs');
+    }
+
+    if (doc.docx_base64) {
+      const buffer = Buffer.from(doc.docx_base64, 'base64');
+      return res.send(buffer);
+    }
+
+    return res.status(404).send('DOCX not found');
   } catch (error) {
     console.error('Serve DOCX error:', error);
     res.status(500).send('Error serving DOCX');
@@ -218,22 +238,33 @@ router.get('/:id/pages/:pageNumber', async (req, res) => {
   try {
     const context = await loadAuthorizedDocument(req, res);
     if (!context) return;
+    const { doc, db } = context;
     const pageNumber = parseInt(req.params.pageNumber, 10);
-    const pages = context.doc.pages;
+    const pages = doc.pages;
     if (!pages || !pages.length) return res.status(404).send('Not found');
 
     const page = pages.find(p => p.page_number === pageNumber);
     if (!page) return res.status(404).send('Page not found');
 
-    const buffer = Buffer.from(page.png_base64, 'base64');
     res.setHeader('Content-Type', 'image/png');
     if (req.query.download === 'true') {
       res.setHeader('Content-Disposition', `attachment; filename="document_${req.params.id}_page_${pageNumber}.png"`);
     } else {
       res.setHeader('Content-Disposition', `inline; filename="page_${pageNumber}.png"`);
     }
-    await logDocumentAccess(req, context.doc, 'view');
-    res.send(buffer);
+    await logDocumentAccess(req, doc, 'view');
+
+    if (page.png_gridfs_id) {
+      const { streamFileFromGridFS } = require('../../utils/fileStorage');
+      return streamFileFromGridFS(db, page.png_gridfs_id, res, 'generated_docs');
+    }
+
+    if (page.png_base64) {
+      const buffer = Buffer.from(page.png_base64, 'base64');
+      return res.send(buffer);
+    }
+
+    return res.status(404).send('Page image unavailable');
   } catch (error) {
     console.error('Serve page error:', error);
     res.status(500).send('Error serving page');
@@ -245,7 +276,7 @@ router.get('/:id/zip', async (req, res) => {
   try {
     const context = await loadAuthorizedDocument(req, res);
     if (!context) return;
-    const { doc } = context;
+    const { doc, db } = context;
     const pages = doc.pages;
     if (!pages || pages.length < 2) return res.status(400).send('Document does not have multiple pages');
 
@@ -255,6 +286,7 @@ router.get('/:id/zip', async (req, res) => {
     const archive = archiver('zip', { zlib: { level: 9 } });
     archive.pipe(res);
 
+    const { getFileBufferFromGridFS } = require('../../utils/fileStorage');
     const manifest = {
       filing_number: doc.filing_number,
       timestamp: doc.generated_at,
@@ -262,14 +294,20 @@ router.get('/:id/zip', async (req, res) => {
       pages: []
     };
 
-    pages.forEach(p => {
-      const buffer = Buffer.from(p.png_base64, 'base64');
-      const filename = `page_${p.page_number}.png`;
-      const checksum = require('crypto').createHash('sha256').update(buffer).digest('hex');
-
-      archive.append(buffer, { name: filename });
-      manifest.pages.push({ page_number: p.page_number, filename, checksum });
-    });
+    for (const p of pages) {
+      let buffer = null;
+      if (p.png_gridfs_id) {
+        buffer = await getFileBufferFromGridFS(db, p.png_gridfs_id, 'generated_docs');
+      } else if (p.png_base64) {
+        buffer = Buffer.from(p.png_base64, 'base64');
+      }
+      if (buffer) {
+        const filename = `page_${p.page_number}.png`;
+        const checksum = require('crypto').createHash('sha256').update(buffer).digest('hex');
+        archive.append(buffer, { name: filename });
+        manifest.pages.push({ page_number: p.page_number, filename, checksum });
+      }
+    }
 
     archive.append(JSON.stringify(manifest, null, 2), { name: 'manifest.json' });
 

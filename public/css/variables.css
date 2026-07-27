@@ -135,33 +135,33 @@
 
 /* ===== DARK MODE - Softer, easier on eyes at 2am ===== */
 :root[data-theme="dark"] {
-    --color-text-primary: #e5e7eb;
-    --color-text-secondary: #b8bcc5;
-    --color-text-tertiary: #8b94a5;
+  --color-text-primary: #e5e7eb;
+  --color-text-secondary: #b8bcc5;
+  --color-text-tertiary: #8b94a5;
 
-    --color-bg-primary: #1a1f2e;
-    --color-bg-secondary: #0f1319;
-    --color-bg-tertiary: #0a0e14;
-    --color-bg-dark: #050709;
+  --color-bg-primary: #1a1f2e;
+  --color-bg-secondary: #0f1319;
+  --color-bg-tertiary: #0a0e14;
+  --color-bg-dark: #050709;
 
-    --color-border: #2d3442;
-    --color-border-light: #1a1f2e;
-    --color-border-dark: #0f1319;
+  --color-border: #2d3442;
+  --color-border-light: #1a1f2e;
+  --color-border-dark: #0f1319;
 
-    --color-primary: #d9b37a;
-    --color-primary-hover: #c9a36a;
-    --color-primary-light: #2d2416;
-    --color-primary-dark: #b39561;
+  --color-primary: #d9b37a;
+  --color-primary-hover: #c9a36a;
+  --color-primary-light: #2d2416;
+  --color-primary-dark: #b39561;
 
-    --color-secondary: #b3dff5;
-    --color-secondary-hover: #99d5f0;
-    --color-secondary-light: #1e3a52;
-    --color-secondary-dark: #7fc9ea;
+  --color-secondary: #b3dff5;
+  --color-secondary-hover: #99d5f0;
+  --color-secondary-light: #1e3a52;
+  --color-secondary-dark: #7fc9ea;
 
-    --color-accent: #c9a36a;
-    --color-accent-hover: #b39561;
+  --color-accent: #c9a36a;
+  --color-accent-hover: #b39561;
 
-    --sidebar-link-hover-bg: #1a1f2e;
-    --sidebar-link-active-bg: #2d2416;
-    --sidebar-link-active-color: #d9b37a;
+  --sidebar-link-hover-bg: #1a1f2e;
+  --sidebar-link-active-bg: #2d2416;
+  --sidebar-link-active-color: #d9b37a;
 }

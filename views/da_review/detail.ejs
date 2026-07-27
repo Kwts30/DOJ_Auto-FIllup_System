@@ -215,15 +215,19 @@
                     </div>
                   </div>
                   <div class="doc-actions" style="display: flex; gap: var(--space-xs);">
-                      <a href="/api/documents/<%= doc._id %>/docx" class="btn btn-icon" title="Download Word Document">
-                        <span class="material-icons" style="color: #ff3b3b;">description</span>
+                    <a href="/api/documents/<%= doc._id %>/docx" class="btn btn-icon" title="Download Word Document">
+                      <span class="material-icons" style="color: #ff3b3b;">description</span>
+                    </a>
+                    <% if (doc.pdf_gridfs_id || doc.pdf_base64) { %>
+                      <a href="/api/documents/<%= doc._id %>/pdf" target="_blank" class="btn btn-icon" title="Download PDF Document">
+                        <span class="material-icons" style="color: #2563eb;">picture_as_pdf</span>
                       </a>
-                      <% if (doc.page_count > 0) { %>
-                        <a href="/api/documents/<%= doc._id %>/pages/1" target="_blank" class="btn btn-icon" title="Preview first image page">
-                          <span class="material-icons">image</span>
-                        </a>
-                      <% } %>
-                    </div>
+                    <% } %>
+                    <% if (doc.page_count > 0) { %>
+                      <a href="/api/documents/<%= doc._id %>/pages/1" target="_blank" class="btn btn-icon" title="Preview first image page">
+                        <span class="material-icons">image</span>
+                      </a>
+                    <% } %>
                     <button type="button" class="btn btn-icon regenerate-doc-btn" data-id="<%= doc._id %>" title="Regenerate Document">
                       <span class="material-icons">sync</span>
                     </button>
@@ -232,6 +236,40 @@
               </div>
             <% }); %>
           </div>
+        <% } else if (filing.status === 'filed') { %>
+          <div class="doc-processing-card" style="border: 1px dashed #3b82f6; background: rgba(59, 130, 246, 0.05); padding: var(--space-md); border-radius: var(--radius-md);">
+            <div style="display: flex; align-items: center; gap: var(--space-sm); margin-bottom: 6px;">
+              <span class="material-icons spin-doc-icon" style="color: #3b82f6;">sync</span>
+              <strong style="color: #1e40af; font-size: var(--font-size-md);">Document Generation in Progress</strong>
+            </div>
+            <p style="font-size: var(--font-size-xs); color: var(--color-text-secondary); margin: 0 0 8px 0; line-height: 1.4;">
+              Official PDF and DOCX legal documents are currently being compiled in the background and will appear here shortly.
+            </p>
+            <span style="font-size: 11px; color: #2563eb; font-weight: 500;">
+              Checking status automatically...
+            </span>
+          </div>
+          <style>
+            @keyframes docSpinAnimation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+            .spin-doc-icon { animation: docSpinAnimation 1.5s linear infinite; }
+          </style>
+          <script>
+            (function pollForDoc() {
+              let count = 0;
+              const timer = setInterval(async () => {
+                count++;
+                if (count > 20) { clearInterval(timer); return; }
+                try {
+                  const res = await fetch(window.location.href);
+                  const htmlText = await res.text();
+                  if (htmlText.includes('/api/documents/') || htmlText.includes('Generated Document')) {
+                    clearInterval(timer);
+                    window.location.reload();
+                  }
+                } catch (e) {}
+              }, 3000);
+            })();
+          </script>
         <% } else { %>
           <p class="empty-text">No documents generated yet. They will be auto-generated upon approval.</p>
         <% } %>

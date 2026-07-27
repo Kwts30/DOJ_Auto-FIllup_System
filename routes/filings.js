@@ -13,6 +13,8 @@ const { getActor, canViewFiling, canEditFiling, canCreateFiling } = require('../
 const { resolveAttachmentPath, removeStoredFile, storeFileInGridFS, deleteFileFromGridFS } = require('../utils/fileStorage');
 const { validateUploadedFile, isImageMimeType } = require('../utils/uploadValidation');
 
+const { validateDraftInput, createAttachments, getChargeCodes } = require('../services/filingService');
+
 // Use memoryStorage so uploads go to GridFS instead of the local filesystem
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -24,85 +26,8 @@ function getRequestFiles(req) {
   return Array.isArray(req.files) ? req.files : [];
 }
 
-// GridFS cleanup — only called when attachment creation fails after upload.
-// Files in-memory (buffer) need no cleanup; GridFS files are deleted if stored.
-async function cleanupGridFSFiles(db, gridfsIds) {
-  await Promise.all(gridfsIds.map(id => deleteFileFromGridFS(db, id).catch(() => {})));
-}
-
 function getCategories(req, fileCount) {
   return getUploadCategories(req.body.categories || req.body.category, fileCount);
-}
-
-async function getChargeCodes(db) {
-  const charges = await db.collection('charges').find({}, { projection: { code: 1 } }).toArray();
-  return charges.map(charge => charge.code);
-}
-
-async function validateDraftInput(db, input, department) {
-  const result = validateFilingInput(input, {
-    department,
-    chargeCodes: await getChargeCodes(db),
-    requireComplete: false
-  });
-  if (!result.valid) throw new Error(result.errors.join('. '));
-  return result.schema;
-}
-
-async function createAttachments({ db, filing, files, categories, uploadedBy }) {
-  if (files.length === 0) return [];
-
-  const schema = getFilingSchema(filing.filing_type);
-  if (!schema) throw new Error('Unsupported filing type');
-
-  const currentCount = await Attachment.countByFilingNumber(filing.filing_number);
-  if (currentCount + files.length > UPLOAD_LIMITS.maxFilesPerCase) {
-    throw new Error(`Maximum ${UPLOAD_LIMITS.maxFilesPerCase} attachments per filing allowed`);
-  }
-
-  const mimeTypes = await Promise.all(files.map(file => validateUploadedFile(file, UPLOAD_LIMITS.allowedMimeTypes)));
-  const created = [];
-  const storedGridFSIds = [];
-
-  try {
-    for (let index = 0; index < files.length; index += 1) {
-      const file = files[index];
-      const category = categories[index];
-      const mimeType = mimeTypes[index];
-      const isSignature = category === 'officer_signature' || category === 'da_signature';
-
-      if (!schema.requirements.evidence && !isSignature) {
-        throw new Error('This filing type does not accept evidence attachments');
-      }
-      if (isSignature && !isImageMimeType(mimeType)) {
-        throw new Error('Signature files must be PNG, JPG, or WEBP images');
-      }
-      if (isSignature) {
-        const existing = await db.collection('attachments').findOne({ filing_number: filing.filing_number, category });
-        if (existing) throw new Error(`A ${category.replace('_', ' ')} already exists for this filing`);
-      }
-
-      // Store to GridFS (memory buffer → MongoDB)
-      const gridfsId = await storeFileInGridFS(db, file.buffer, file.originalname, mimeType);
-      storedGridFSIds.push(gridfsId);
-
-      const attachment = await Attachment.create({
-        category,
-        gridfs_id: gridfsId,
-        mime_type: mimeType,
-        original_name: file.originalname,
-        filing_number: filing.filing_number,
-        uploaded_by: uploadedBy
-      });
-      created.push(attachment);
-    }
-    return created;
-  } catch (error) {
-    // Rollback: delete GridFS files and DB records
-    await cleanupGridFSFiles(db, storedGridFSIds);
-    await Promise.all(created.map(attachment => Attachment.deleteById(attachment._id)));
-    throw error;
-  }
 }
 
 function renderAccessDenied(res) {
@@ -317,6 +242,9 @@ router.post('/:filingNumber/submit', async (req, res) => {
       status: 'submitted', note: 'Filing submitted to DA with verified e-signature attestation', timestamp: new Date(),
       filing_number: filing.filing_number, changed_by: new ObjectId(actor.id)
     });
+    const { notifyStatusChange } = require('../utils/discordDigest');
+    notifyStatusChange(filing.filing_number, 'submitted', req.session.name || 'Officer', 'Submitted to District Attorney for review');
+
     await logActivity(new ObjectId(actor.id), 'submit', `Submitted filing ${filing.filing_number} to DA`, 'filing', filing.filing_number, req);
     res.json({ success: true, message: 'Filing submitted to DA for review' });
   } catch (error) {
@@ -340,7 +268,6 @@ router.post('/:filingNumber/attachments', upload.array('files', 10), async (req,
     await Promise.all(attachments.map(attachment => logActivity(new ObjectId(actor.id), 'create', `Uploaded attachment ${attachment.original_name} to filing ${filing.filing_number}`, 'document', attachment._id.toString(), req)));
     res.status(201).json({ success: true, attachments });
   } catch (error) {
-    cleanupUploadedFiles(files);
     console.error('Attachment upload error:', error);
     res.status(400).json({ error: error.message || 'Failed to upload attachments' });
   }

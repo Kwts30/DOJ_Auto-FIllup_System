@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { validateEnv } = require('./env');
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -14,6 +15,7 @@ const sessionSecret = requireProductionValue('SESSION_SECRET') || crypto.randomB
 const jwtSecret = requireProductionValue('JWT_SECRET') || crypto.randomBytes(48).toString('hex');
 
 function validateProductionConfiguration() {
+  validateEnv();
   if (!isProduction) return;
   ['MONGODB_URI', 'ADMIN_USERNAME', 'ADMIN_PASSWORD', 'ADMIN_NAME'].forEach(requireProductionValue);
 }
@@ -24,3 +26,4 @@ module.exports = {
   jwtSecret,
   validateProductionConfiguration
 };
+

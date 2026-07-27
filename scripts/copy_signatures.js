@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const srcDa = `C:\\Users\\Asus\\.gemini\\antigravity-ide\\brain\\75b65954-dff4-4673-b7c3-622271d8a952\\signature_da_1783758512907.png`;
-const srcOfficer = `C:\\Users\\Asus\\.gemini\antigravity-ide\\brain\\75b65954-dff4-4673-b7c3-622271d8a952\\signature_officer_1783758523784.png`;
+const srcOfficer = `C:\\Users\\Asus\\.gemini\\antigravity-ide\\brain\\75b65954-dff4-4673-b7c3-622271d8a952\\signature_officer_1783758523784.png`;
 
 const destDa = path.join(__dirname, 'public', 'Assets', 'signature_da.png');
 const destOfficer = path.join(__dirname, 'public', 'Assets', 'signature_officer.png');

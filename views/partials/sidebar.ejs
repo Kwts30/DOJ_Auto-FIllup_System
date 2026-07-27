@@ -2,24 +2,29 @@
 <!-- Department-scoped navigation: shows different menus based on department and admin_role -->
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-header-block" style="justify-content: center; padding: 1.5rem 1rem 1rem; border-bottom: none;">
-    <% if (typeof department !== 'undefined') { %>
+    <% if (typeof department !=='undefined' ) { %>
       <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%;">
-        <% if (department === 'LSPD') { %>
+        <% if (department==='LSPD' ) { %>
           <img src="/Assets/LSPD.png" alt="LSPD Logo" style="max-height: 100px; max-width: 100%; object-fit: contain;">
-          <span style="color: var(--color-text); font-weight: bold; font-size: 0.95rem; text-align: center;">Los Santos Police Department</span>
-        <% } else if (department === 'DA') { %>
-          <img src="/Assets/da.png" alt="DA Logo" style="max-height: 100px; max-width: 100%; object-fit: contain;">
-          <span style="color: var(--color-text); font-weight: bold; font-size: 0.95rem; text-align: center;">District Attorney's Office</span>
-        <% } else if (department === 'DOJ') { %>
-          <img src="/Assets/doj.png" alt="DOJ Logo" style="max-height: 100px; max-width: 100%; object-fit: contain;">
-          <span style="color: var(--color-text); font-weight: bold; font-size: 0.95rem; text-align: center;">Department of Justice</span>
-        <% } %>
+          <span style="color: var(--color-text); font-weight: bold; font-size: 0.95rem; text-align: center;">Los Santos
+            Police Department</span>
+          <% } else if (department==='DA' ) { %>
+            <img src="/Assets/da.png" alt="DA Logo" style="max-height: 100px; max-width: 100%; object-fit: contain;">
+            <span style="color: var(--color-text); font-weight: bold; font-size: 0.95rem; text-align: center;">District
+              Attorney's Office</span>
+            <% } else if (department==='DOJ' ) { %>
+              <img src="/Assets/doj.png" alt="DOJ Logo"
+                style="max-height: 100px; max-width: 100%; object-fit: contain;">
+              <span
+                style="color: var(--color-text); font-weight: bold; font-size: 0.95rem; text-align: center;">Department
+                of Justice</span>
+              <% } %>
       </div>
-    <% } %>
+      <% } %>
   </div>
   <nav class="sidebar-nav">
 
-    <% if (typeof department !== 'undefined' && department === 'LSPD') { %>
+    <% if (typeof department !=='undefined' && department==='LSPD' ) { %>
       <!-- LSPD Officer Menu -->
       <div class="sidebar-group">
         <p class="sidebar-section-label">Filing Requests</p>
@@ -39,75 +44,76 @@
           <span>File New Request</span>
         </a>
       </div>
-    <% } %>
+      <% } %>
 
-    <% if (typeof department !== 'undefined' && department === 'DA') { %>
-      <!-- DA Review Menu -->
-      <div class="sidebar-group">
-        <p class="sidebar-section-label">Filing Review</p>
-        <a href="/dashboard"
-          class="sidebar-link<%= (typeof currentPage !== 'undefined' && currentPage === 'dashboard') ? ' sidebar-link--active' : '' %>">
-          <span class="material-icons">assessment</span>
-          <span>Review Dashboard</span>
-        </a>
-        <a href="/da-review"
-          class="sidebar-link<%= (typeof currentPage !== 'undefined' && currentPage === 'da_review') ? ' sidebar-link--active' : '' %>">
-          <span class="material-icons">rate_review</span>
-          <span>Review Queue</span>
-        </a>
-        <a href="/filings"
-          class="sidebar-link<%= (typeof currentPage !== 'undefined' && currentPage === 'filings') ? ' sidebar-link--active' : '' %>">
-          <span class="material-icons">folder</span>
-          <span>All Filings</span>
-        </a>
-      </div>
-    <% } %>
+        <% if (typeof department !=='undefined' && department==='DA' ) { %>
+          <!-- DA Review Menu -->
+          <div class="sidebar-group">
+            <p class="sidebar-section-label">Filing Review</p>
+            <a href="/dashboard"
+              class="sidebar-link<%= (typeof currentPage !== 'undefined' && currentPage === 'dashboard') ? ' sidebar-link--active' : '' %>">
+              <span class="material-icons">assessment</span>
+              <span>Review Dashboard</span>
+            </a>
+            <a href="/da-review"
+              class="sidebar-link<%= (typeof currentPage !== 'undefined' && currentPage === 'da_review') ? ' sidebar-link--active' : '' %>">
+              <span class="material-icons">rate_review</span>
+              <span>Review Queue</span>
+            </a>
+            <a href="/filings"
+              class="sidebar-link<%= (typeof currentPage !== 'undefined' && currentPage === 'filings') ? ' sidebar-link--active' : '' %>">
+              <span class="material-icons">folder</span>
+              <span>All Filings</span>
+            </a>
+          </div>
+          <% } %>
 
-    <% if (typeof department !== 'undefined' && department === 'DOJ') { %>
-      <!-- DOJ Menu -->
-      <div class="sidebar-group">
-        <p class="sidebar-section-label">Justice Overview</p>
-        <a href="/filings"
-          class="sidebar-link<%= (typeof currentPage !== 'undefined' && currentPage === 'filings') ? ' sidebar-link--active' : '' %>">
-          <span class="material-icons">folder</span>
-          <span>All Filings</span>
-        </a>
-      </div>
-    <% } %>
+            <% if (typeof department !=='undefined' && department==='DOJ' ) { %>
+              <!-- DOJ Menu -->
+              <div class="sidebar-group">
+                <p class="sidebar-section-label">Justice Overview</p>
+                <a href="/filings"
+                  class="sidebar-link<%= (typeof currentPage !== 'undefined' && currentPage === 'filings') ? ' sidebar-link--active' : '' %>">
+                  <span class="material-icons">folder</span>
+                  <span>All Filings</span>
+                </a>
+              </div>
+              <% } %>
 
-    <% if (typeof admin_role !== 'undefined' && (admin_role === 'department_admin' || admin_role === 'super_admin')) { %>
-      <!-- Admin Menu -->
-      <div class="sidebar-group">
-        <p class="sidebar-section-label">Administration</p>
-        <a href="/admin/dashboard"
-          class="sidebar-link<%= (typeof currentPage !== 'undefined' && currentPage === 'admin-dashboard') ? ' sidebar-link--active' : '' %>">
-          <span class="material-icons">admin_panel_settings</span>
-          <span>Admin Dashboard</span>
-        </a>
-        <a href="/admin/accounts"
-          class="sidebar-link<%= (typeof currentPage !== 'undefined' && currentPage === 'admin-accounts') ? ' sidebar-link--active' : '' %>">
-          <span class="material-icons">how_to_reg</span>
-          <span>Verification Queue</span>
-        </a>
-        <a href="/admin/users"
-          class="sidebar-link<%= (typeof currentPage !== 'undefined' && currentPage === 'admin-users') ? ' sidebar-link--active' : '' %>">
-          <span class="material-icons">group</span>
-          <span>Users</span>
-        </a>
-        <% if (admin_role === 'super_admin') { %>
-          <a href="/admin/audit-log"
-            class="sidebar-link<%= (typeof currentPage !== 'undefined' && currentPage === 'admin-logs') ? ' sidebar-link--active' : '' %>">
-            <span class="material-icons">history</span>
-            <span>Audit Log</span>
-          </a>
-          <a href="/admin/analytics"
-            class="sidebar-link<%= (typeof currentPage !== 'undefined' && currentPage === 'admin-analytics') ? ' sidebar-link--active' : '' %>">
-            <span class="material-icons">bar_chart</span>
-            <span>Analytics</span>
-          </a>
-        <% } %>
-      </div>
-    <% } %>
+                <% if (typeof admin_role !=='undefined' && (admin_role==='department_admin' ||
+                  admin_role==='super_admin' )) { %>
+                  <!-- Admin Menu -->
+                  <div class="sidebar-group">
+                    <p class="sidebar-section-label">Administration</p>
+                    <a href="/admin/dashboard"
+                      class="sidebar-link<%= (typeof currentPage !== 'undefined' && currentPage === 'admin-dashboard') ? ' sidebar-link--active' : '' %>">
+                      <span class="material-icons">admin_panel_settings</span>
+                      <span>Admin Dashboard</span>
+                    </a>
+                    <a href="/admin/accounts"
+                      class="sidebar-link<%= (typeof currentPage !== 'undefined' && currentPage === 'admin-accounts') ? ' sidebar-link--active' : '' %>">
+                      <span class="material-icons">how_to_reg</span>
+                      <span>Verification Queue</span>
+                    </a>
+                    <a href="/admin/users"
+                      class="sidebar-link<%= (typeof currentPage !== 'undefined' && currentPage === 'admin-users') ? ' sidebar-link--active' : '' %>">
+                      <span class="material-icons">group</span>
+                      <span>Users</span>
+                    </a>
+                    <% if (admin_role==='super_admin' ) { %>
+                      <a href="/admin/audit-log"
+                        class="sidebar-link<%= (typeof currentPage !== 'undefined' && currentPage === 'admin-logs') ? ' sidebar-link--active' : '' %>">
+                        <span class="material-icons">history</span>
+                        <span>Audit Log</span>
+                      </a>
+                      <a href="/admin/analytics"
+                        class="sidebar-link<%= (typeof currentPage !== 'undefined' && currentPage === 'admin-analytics') ? ' sidebar-link--active' : '' %>">
+                        <span class="material-icons">bar_chart</span>
+                        <span>Analytics</span>
+                      </a>
+                      <% } %>
+                  </div>
+                  <% } %>
 
   </nav>
 

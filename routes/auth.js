@@ -276,6 +276,10 @@ router.post('/signup', authRateLimitMiddleware, async (req, res) => {
     // Log signup
     await logActivity(result.insertedId, 'signup', `${username} signed up (${department} - ${position})`, 'account', result.insertedId.toString(), req);
 
+    // Dispatch real-time Discord notification to admins
+    const { notifyAccountRegistration } = require('../utils/discordDigest');
+    notifyAccountRegistration(newUser);
+
     // Redirect to login with success message
     res.redirect('/login?info=Your account has been submitted for verification. An administrator will review your application.');
   } catch (error) {

@@ -215,6 +215,9 @@ exports.approveAccount = async (req, res) => {
       'account', targetUser._id.toString(), req
     );
 
+    const { notifyAccountApproval } = require('../utils/discordDigest');
+    notifyAccountApproval(targetUser, req.session.name || 'Admin', true);
+
     res.json({ success: true, message: `Account ${targetUser.username} approved` });
   } catch (error) {
     console.error('Account approval error:', error);
@@ -263,6 +266,9 @@ exports.rejectAccount = async (req, res) => {
       `Rejected account for ${targetUser.username}: ${rejection_reason}`,
       'account', targetUser._id.toString(), req
     );
+
+    const { notifyAccountApproval } = require('../utils/discordDigest');
+    notifyAccountApproval(targetUser, req.session.name || 'Admin', false, rejection_reason);
 
     res.json({ success: true, message: `Account ${targetUser.username} rejected` });
   } catch (error) {

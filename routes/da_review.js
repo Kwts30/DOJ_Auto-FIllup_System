@@ -170,6 +170,9 @@ router.post('/:filingNumber/claim', async (req, res) => {
       'filing', req.params.filingNumber, req
     );
 
+    const { notifyStatusChange } = require('../utils/discordDigest');
+    notifyStatusChange(req.params.filingNumber, 'under_review', req.session.name, `Claimed by ${req.session.name}`);
+
     res.json({ success: true, message: 'Filing claimed for review' });
   } catch (error) {
     console.error('Filing claim error:', error);
@@ -179,7 +182,6 @@ router.post('/:filingNumber/claim', async (req, res) => {
 
 router.post('/:filingNumber/approve', upload.single('da_signature_file'), async (req, res) => {
   let signatureAttachment = null;
-  let generatedDocument = null;
   let uploadedGridFSId = null;
   try {
     console.log('[DA Approve] Starting approval for filing:', req.params.filingNumber);
@@ -196,12 +198,7 @@ router.post('/:filingNumber/approve', upload.single('da_signature_file'), async 
       return res.status(404).json({ error: 'Filing not found or you are not the assigned reviewer' });
     }
 
-    if (!req.file) {
-      console.log('[DA Approve] No signature file provided');
-      return res.status(400).json({ error: 'Signature image is required to approve filing' });
-    }
-
-    const { approval_password: approvalPassword } = req.body;
+    const { approval_password: approvalPassword, save_as_default_signature: saveAsDefault } = req.body;
     if (!approvalPassword) {
       return res.status(400).json({ error: 'Password confirmation is required to approve a filing' });
     }
@@ -209,13 +206,32 @@ router.post('/:filingNumber/approve', upload.single('da_signature_file'), async 
     if (!reviewerAccount || !(await verifyPassword(approvalPassword, reviewerAccount.password_hash))) {
       return res.status(401).json({ error: 'Password verification failed' });
     }
-    const signatureMimeType = await validateUploadedFile(req.file, UPLOAD_LIMITS.allowedMimeTypes);
-    if (!isImageMimeType(signatureMimeType)) {
-      return res.status(400).json({ error: 'DA signature must be a PNG, JPG, or WEBP image' });
+
+    let signatureMimeType = null;
+    let signatureOriginalName = null;
+
+    if (req.file) {
+      signatureMimeType = await validateUploadedFile(req.file, UPLOAD_LIMITS.allowedMimeTypes);
+      if (!isImageMimeType(signatureMimeType)) {
+        return res.status(400).json({ error: 'DA signature must be a PNG, JPG, or WEBP image' });
+      }
+      uploadedGridFSId = await storeFileInGridFS(db, req.file.buffer, req.file.originalname, signatureMimeType);
+      signatureOriginalName = req.file.originalname;
+
+      if (saveAsDefault === 'true' || saveAsDefault === true) {
+        await db.collection('users').updateOne(
+          { _id: reviewerAccount._id },
+          { $set: { signature_gridfs_id: uploadedGridFSId, signature_mime_type: signatureMimeType, signature_name: signatureOriginalName } }
+        );
+      }
+    } else if (reviewerAccount.signature_gridfs_id) {
+      uploadedGridFSId = reviewerAccount.signature_gridfs_id;
+      signatureMimeType = reviewerAccount.signature_mime_type || 'image/png';
+      signatureOriginalName = reviewerAccount.signature_name || 'saved_da_signature.png';
+    } else {
+      return res.status(400).json({ error: 'Signature image is required. Upload a signature file or save one to your profile.' });
     }
 
-    // Store signature in GridFS
-    uploadedGridFSId = await storeFileInGridFS(db, req.file.buffer, req.file.originalname, signatureMimeType);
     console.log('[DA Approve] Saving signature attachment to GridFS:', uploadedGridFSId);
     const Attachment = require('../models/Attachment');
     Attachment.setDB(db);
@@ -224,7 +240,7 @@ router.post('/:filingNumber/approve', upload.single('da_signature_file'), async 
         category: 'da_signature',
         gridfs_id: uploadedGridFSId,
         mime_type: signatureMimeType,
-        original_name: req.file.originalname,
+        original_name: signatureOriginalName,
         filing_number: filing.filing_number,
         uploaded_by: req.session.userId
       });
@@ -233,19 +249,9 @@ router.post('/:filingNumber/approve', upload.single('da_signature_file'), async 
       throw new Error('Failed to save signature file');
     }
 
-    const submitter = await db.collection('users').findOne({ _id: filing.submitted_by });
-    const reviewer = await db.collection('users').findOne({ _id: filing.da_reviewer });
-    
-    // Fetch updated filing to include latest signature data
-    const updatedFiling = await Filing.findByFilingNumber(req.params.filingNumber);
-
-    console.log('[DA Approve] Generating documents before final approval');
-    generatedDocument = await generateDocumentForFiling(updatedFiling, submitter, reviewer);
-
-    console.log('[DA Approve] Approving filing');
+    console.log('[DA Approve] Approving filing status');
     const approved = await Filing.approve(filing._id);
     if (!approved) {
-      if (generatedDocument?._id) await db.collection('generated_documents').deleteOne({ _id: generatedDocument._id });
       const stateError = new Error('The filing state changed before approval could be completed');
       stateError.status = 409;
       throw stateError;
@@ -260,7 +266,7 @@ router.post('/:filingNumber/approve', upload.single('da_signature_file'), async 
     console.log('[DA Approve] Creating timeline entry');
     await db.collection('timeline_entries').insertOne({
       status: 'filed',
-      note: `Approved by ${req.session.name} (${req.session.position}). Documents generated.`,
+      note: `Approved by ${req.session.name} (${req.session.position}). Documents generation scheduled.`,
       timestamp: new Date(),
       filing_number: req.params.filingNumber,
       changed_by: new ObjectId(req.session.userId)
@@ -271,20 +277,34 @@ router.post('/:filingNumber/approve', upload.single('da_signature_file'), async 
       `Approved filing ${req.params.filingNumber}`,
       'filing', req.params.filingNumber, req
     );
+    const { notifyStatusChange } = require('../utils/discordDigest');
+    notifyStatusChange(req.params.filingNumber, 'filed', req.session.name, `Approved by ${req.session.name} (${req.session.position})`);
+
+    // Asynchronously generate documents in background so HTTP response is instant
+    const submitter = await db.collection('users').findOne({ _id: filing.submitted_by });
+    const reviewer = await db.collection('users').findOne({ _id: filing.da_reviewer });
+    const updatedFiling = await Filing.findByFilingNumber(req.params.filingNumber);
+
+    setImmediate(async () => {
+      try {
+        await generateDocumentForFiling(updatedFiling, submitter, reviewer);
+        console.log(`[DA Approve Async] Documents successfully generated for filing ${filing.filing_number}`);
+      } catch (docErr) {
+        console.error(`[DA Approve Async Error] Failed to generate document for ${filing.filing_number}:`, docErr);
+      }
+    });
 
     console.log('[DA Approve] Approval complete for filing:', req.params.filingNumber);
-    res.json({ success: true, message: 'Filing approved and documents generated' });
+    res.json({ success: true, message: 'Filing approved and documents generation scheduled' });
   } catch (error) {
     // Cleanup: remove GridFS file and attachment DB record if upload partially succeeded
-    if (signatureAttachment) {
+    if (signatureAttachment && req.file) {
       try {
         await getDatabase().collection('attachments').deleteOne({ _id: signatureAttachment._id });
         if (uploadedGridFSId) await deleteFileFromGridFS(getDatabase(), uploadedGridFSId);
       } catch (cleanupError) {
         console.error('[DA Approve] Signature cleanup error:', cleanupError);
       }
-    } else if (uploadedGridFSId) {
-      await deleteFileFromGridFS(getDatabase(), uploadedGridFSId).catch(() => {});
     }
     console.error('[DA Approve] Filing approval error:', error);
     res.status(error.status || 500).json({ error: error.status ? error.message : 'Failed to approve filing' });
@@ -324,6 +344,9 @@ router.post('/:filingNumber/revise', async (req, res) => {
       'filing', req.params.filingNumber, req
     );
 
+    const { notifyStatusChange } = require('../utils/discordDigest');
+    notifyStatusChange(req.params.filingNumber, 'needs_revision', req.session.name, `Reason: ${reasonLabel}. ${revision_note || ''}`);
+
     res.json({ success: true, message: 'Revision requested' });
   } catch (error) {
     console.error('Filing revision error:', error);
@@ -356,6 +379,9 @@ router.post('/:filingNumber/dismiss', async (req, res) => {
       `Dismissed filing ${req.params.filingNumber}`,
       'filing', req.params.filingNumber, req
     );
+
+    const { notifyStatusChange } = require('../utils/discordDigest');
+    notifyStatusChange(req.params.filingNumber, 'dismissed', req.session.name, `Dismissed by ${req.session.name}`);
 
     res.json({ success: true, message: 'Filing dismissed' });
   } catch (error) {

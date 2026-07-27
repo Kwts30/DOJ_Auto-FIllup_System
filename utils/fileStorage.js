@@ -61,10 +61,11 @@ function removeStoredFile(filePath) {
  * @param {Buffer} buffer - File content
  * @param {string} filename - Stored filename (for metadata)
  * @param {string} mimeType - MIME type for metadata
+ * @param {string} bucketName - GridFS bucket name
  * @returns {Promise<string>} - GridFS file _id as hex string
  */
-async function storeFileInGridFS(db, buffer, filename, mimeType) {
-  const bucket = new GridFSBucket(db, { bucketName: 'attachments' });
+async function storeFileInGridFS(db, buffer, filename, mimeType, bucketName = 'attachments') {
+  const bucket = new GridFSBucket(db, { bucketName });
   return new Promise((resolve, reject) => {
     const uploadStream = bucket.openUploadStream(filename, {
       metadata: { mimeType }
@@ -81,9 +82,10 @@ async function storeFileInGridFS(db, buffer, filename, mimeType) {
  * @param {import('mongodb').Db} db
  * @param {string} gridfsId - GridFS file _id hex string
  * @param {import('express').Response} res
+ * @param {string} bucketName - GridFS bucket name
  */
-async function streamFileFromGridFS(db, gridfsId, res) {
-  const bucket = new GridFSBucket(db, { bucketName: 'attachments' });
+async function streamFileFromGridFS(db, gridfsId, res, bucketName = 'attachments') {
+  const bucket = new GridFSBucket(db, { bucketName });
   const id = new ObjectId(gridfsId);
 
   // Verify file exists first
@@ -102,14 +104,35 @@ async function streamFileFromGridFS(db, gridfsId, res) {
 }
 
 /**
+ * Retrieve raw Buffer of a file from GridFS.
+ *
+ * @param {import('mongodb').Db} db
+ * @param {string} gridfsId
+ * @param {string} bucketName
+ * @returns {Promise<Buffer>}
+ */
+async function getFileBufferFromGridFS(db, gridfsId, bucketName = 'attachments') {
+  const bucket = new GridFSBucket(db, { bucketName });
+  const id = new ObjectId(gridfsId);
+  const chunks = [];
+  return new Promise((resolve, reject) => {
+    const downloadStream = bucket.openDownloadStream(id);
+    downloadStream.on('data', chunk => chunks.push(chunk));
+    downloadStream.on('end', () => resolve(Buffer.concat(chunks)));
+    downloadStream.on('error', reject);
+  });
+}
+
+/**
  * Delete a file from GridFS by its _id hex string.
  *
  * @param {import('mongodb').Db} db
  * @param {string} gridfsId
+ * @param {string} bucketName
  */
-async function deleteFileFromGridFS(db, gridfsId) {
+async function deleteFileFromGridFS(db, gridfsId, bucketName = 'attachments') {
   try {
-    const bucket = new GridFSBucket(db, { bucketName: 'attachments' });
+    const bucket = new GridFSBucket(db, { bucketName });
     await bucket.delete(new ObjectId(gridfsId));
   } catch (e) {
     // Ignore if already deleted
@@ -128,5 +151,6 @@ module.exports = {
   removeStoredFile,
   storeFileInGridFS,
   streamFileFromGridFS,
+  getFileBufferFromGridFS,
   deleteFileFromGridFS
 };

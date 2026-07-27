@@ -108,36 +108,72 @@ async function generateDocumentForFiling(filing, submitter, reviewer, existingDo
     
     const buf = doc.getZip().generate({ type: 'nodebuffer' });
 
-    const docxBase64 = buf.toString('base64');
+    const { storeFileInGridFS } = require('./fileStorage');
+    const docxGridFSId = await storeFileInGridFS(
+      db,
+      buf,
+      `filing_${filing.filing_number}.docx`,
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'generated_docs'
+    );
+
     let rendered = { rendered: false, reason: null, pdfBase64: null, pages: [] };
+    let pdfGridFSId = null;
+    const pageRecords = [];
+
     try {
       rendered = await renderDocxToPdfAndPng(buf);
+      if (rendered.rendered && rendered.pdfBase64) {
+        const pdfBuffer = Buffer.from(rendered.pdfBase64, 'base64');
+        pdfGridFSId = await storeFileInGridFS(
+          db,
+          pdfBuffer,
+          `filing_${filing.filing_number}.pdf`,
+          'application/pdf',
+          'generated_docs'
+        );
+
+        for (const page of rendered.pages || []) {
+          const pngBuffer = Buffer.from(page.png_base64, 'base64');
+          const pngGridFSId = await storeFileInGridFS(
+            db,
+            pngBuffer,
+            `filing_${filing.filing_number}_page_${page.page_number}.png`,
+            'image/png',
+            'generated_docs'
+          );
+          pageRecords.push({
+            page_number: page.page_number,
+            png_gridfs_id: pngGridFSId,
+            png_base64: page.png_base64
+          });
+        }
+      }
     } catch (renderError) {
       rendered = { rendered: false, reason: renderError.message, pdfBase64: null, pages: [] };
       console.error('Document image rendering skipped:', renderError.message);
     }
 
-    // 5. Save to DB — PDF is stored as base64 in MongoDB (no disk write)
+    // 5. Save to DB — Store GridFS IDs with base64 fallbacks for backward compatibility
     let genDoc;
+    const docDataPayload = {
+      docx_gridfs_id: docxGridFSId,
+      pdf_gridfs_id: pdfGridFSId,
+      docx_base64: buf.toString('base64'),
+      pdf_base64: rendered.pdfBase64,
+      pages: pageRecords.length > 0 ? pageRecords : rendered.pages,
+      page_count: (pageRecords.length > 0 ? pageRecords : rendered.pages).length,
+      conversion_status: rendered.rendered ? 'completed' : 'unavailable',
+      conversion_error: rendered.reason
+    };
+
     if (existingDocId) {
-      await GeneratedDocument.updateDocument(existingDocId, {
-        docx_base64: docxBase64,
-        pdf_base64: rendered.pdfBase64,
-        pages: rendered.pages,
-        page_count: rendered.pages.length,
-        conversion_status: rendered.rendered ? 'completed' : 'unavailable',
-        conversion_error: rendered.reason
-      });
+      await GeneratedDocument.updateDocument(existingDocId, docDataPayload);
       genDoc = { _id: existingDocId, filing_number: filing.filing_number, generated_at: new Date() };
     } else {
       genDoc = await GeneratedDocument.create({
         filing_number: filing.filing_number,
-        docx_base64: docxBase64,
-        pdf_base64: rendered.pdfBase64,
-        pages: rendered.pages,
-        page_count: rendered.pages.length,
-        conversion_status: rendered.rendered ? 'completed' : 'unavailable',
-        conversion_error: rendered.reason
+        ...docDataPayload
       });
     }
 
@@ -189,7 +225,7 @@ async function getAttachmentBase64(att) {
 async function mapFilingDataToTemplate(filing, submitter, reviewer, attachments, chargesDocs) {
   const d = new Date();
   const day = String(d.getDate()).padStart(2, '0');
-  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const month = monthNames[d.getMonth()];
   const year = d.getFullYear();
   

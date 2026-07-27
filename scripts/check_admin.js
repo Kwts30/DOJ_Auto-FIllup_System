@@ -7,7 +7,7 @@ async function check() {
   console.log(user);
   
   if (user && user.login_attempts >= 5) {
-    console.log("Resetting login attempts to 0");
+    console.log('Resetting login attempts to 0');
     await db.collection('users').updateOne(
       { username: 'ADMIN-001' },
       { $set: { login_attempts: 0 } }

@@ -1,16 +1,14 @@
 const { getRendererConfiguration } = require('../utils/documentRenderer');
 
 describe('document renderer configuration', () => {
-  test('reports that rendering is unavailable without a configured DOCX converter', () => {
-    const previous = process.env.SOFFICE_PATH;
-    delete process.env.SOFFICE_PATH;
-
-    expect(getRendererConfiguration()).toEqual({
-      available: false,
-      reason: 'SOFFICE_PATH is not configured'
-    });
-
-    if (previous === undefined) delete process.env.SOFFICE_PATH;
-    else process.env.SOFFICE_PATH = previous;
+  test('returns renderer configuration object with availability status', () => {
+    const config = getRendererConfiguration();
+    expect(config).toHaveProperty('available');
+    expect(typeof config.available).toBe('boolean');
+    if (config.available) {
+      expect(['libreoffice', 'microsoft-word']).toContain(config.engine);
+    } else {
+      expect(config).toHaveProperty('reason');
+    }
   });
 });

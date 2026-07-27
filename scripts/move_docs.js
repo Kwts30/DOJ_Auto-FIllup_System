@@ -49,7 +49,7 @@ function moveDocsRegex(filePath, afterCardRegex) {
   const match = /([ \t]*)<!-- Generated Documents -->([\s\S]*?(?:<% } %>|<\/div>))\n(?:[ \t]*<\/div>\n)?[ \t]*<!-- Right: Sidebar/.exec(content);
   
   if (!match) {
-    console.log("Could not find block in " + filePath);
+    console.log('Could not find block in ' + filePath);
     return;
   }
   
@@ -67,7 +67,7 @@ function moveDocsRegex(filePath, afterCardRegex) {
   content = content.replace(afterCardRegex, `$&` + '\n\n' + block);
   
   fs.writeFileSync(filePath, content);
-  console.log("Updated " + filePath);
+  console.log('Updated ' + filePath);
 }
 
 const filingsPath = path.join(__dirname, 'views/filings/detail.ejs');
@@ -114,7 +114,7 @@ function manualMove(filePath, isDaReview) {
   }
   
   fs.writeFileSync(filePath, lines.join('\n'));
-  console.log("Successfully moved block in " + filePath);
+  console.log('Successfully moved block in ' + filePath);
 }
 
 manualMove(path.join(__dirname, 'views/filings/detail.ejs'), false);

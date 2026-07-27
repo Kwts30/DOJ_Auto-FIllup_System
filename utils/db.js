@@ -70,6 +70,9 @@ async function initializeDatabase(mongoUri) {
     await ensureIndex(db, 'filings', { da_reviewer: 1 });
     await ensureIndex(db, 'filings', { created_at: 1 });
     await ensureIndex(db, 'filings', { updated_at: 1 });
+    await ensureIndex(db, 'filings', { status: 1, updated_at: -1 });
+    await ensureIndex(db, 'filings', { submitted_by: 1, status: 1 });
+    await ensureIndex(db, 'filings', { da_reviewer: 1, status: 1 });
 
     // Atomic daily filing-number counters
     if (!collectionNames.includes('filing_sequences')) {
