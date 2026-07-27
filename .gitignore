@@ -41,3 +41,6 @@ temp_warrant.zip
 dist/
 build/
 node_modules
+
+
+uploads/
