@@ -36,3 +36,5 @@ pid
 # Build artifacts
 dist/
 build/
+
+uploads/
